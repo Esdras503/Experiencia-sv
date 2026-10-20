@@ -1,0 +1,3 @@
+-- Sin datos de ejemplo: la aplicación no crea cuentas ni itinerarios de prueba.
+-- Las pruebas de RLS viven en supabase/tests/phase5_rls.sql y se ejecutan
+-- únicamente contra una base local o de desarrollo.

@@ -1,340 +1,224 @@
-
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
+import Header from './components/layout/Header'
+import Footer from './components/layout/Footer'
+import ChatWidget from './components/chat/ChatWidget'
+import ErrorBoundary from './components/ui/ErrorBoundary'
+import RequireAuth from './components/auth/RequireAuth'
+import HomePage from './pages/HomePage'
+import PlaceDetailPage from './pages/PlaceDetailPage'
+import NotFoundPage from './pages/NotFoundPage'
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
+import AccountPage from './pages/AccountPage'
+import AccountUnavailablePage from './pages/AuthUnavailablePage'
+import ItinerariesPage from './pages/ItinerariesPage'
+import ItineraryDetailPage from './pages/ItineraryDetailPage'
+import { useAuth } from './context/authContext.js'
+import { useAppRoute } from './hooks/useAppRoute'
+import { useDocumentTitle } from './hooks/useDocumentTitle'
+import { parseRoute } from './utils/routes'
 
-const categories = [
-  { name: 'Naturaleza', icon: '🌿' },
-  { name: 'Playas', icon: '🏖️' },
-  { name: 'Montañas', icon: '⛰️' },
-  { name: 'Cultura', icon: '🏛️' },
-  { name: 'Aventura', icon: '🥾' },
-  { name: 'Gastronomía', icon: '🍽️' },
-]
+const AUTH_ROUTES = new Set([
+  'login',
+  'register',
+  'forgot-password',
+  'reset-password',
+])
 
-const places = [
-  {
-    id: 1,
-    name: 'Lago de Coatepeque',
-    location: 'Santa Ana',
-    category: 'Naturaleza',
-    description: 'Disfruta de paisajes volcánicos y vistas al lago.',
-    image:
-      'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    id: 2,
-    name: 'El Tunco',
-    location: 'La Libertad',
-    category: 'Playas',
-    description: 'Una playa conocida por el surf y su ambiente turístico.',
-    image:
-      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    id: 3,
-    name: 'Cerro Verde',
-    location: 'Santa Ana',
-    category: 'Montañas',
-    description: 'Explora senderos y disfruta de vistas volcánicas.',
-    image:
-      'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    id: 4,
-    name: 'Centro Histórico',
-    location: 'San Salvador',
-    category: 'Cultura',
-    description: 'Descubre arquitectura, plazas y espacios históricos.',
-    image:
-      'https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=900&q=80',
-  },
-]
+const PAGE_TITLES = {
+  login: 'Iniciar sesión — Experiencia SV',
+  register: 'Crear cuenta — Experiencia SV',
+  'forgot-password': 'Recuperar contraseña — Experiencia SV',
+  'reset-password': 'Nueva contraseña — Experiencia SV',
+  account: 'Mi cuenta — Experiencia SV',
+  itineraries: 'Mis itinerarios — Experiencia SV',
+  itinerary: 'Itinerario guardado — Experiencia SV',
+  'not-found': 'Página no encontrada — Experiencia SV',
+}
 
 function App() {
-  const [search, setSearch] = useState('')
-  const [activeCategory, setActiveCategory] = useState('Todos')
+  const { pathname, search, hash, navigate } = useAppRoute()
   const [chatOpen, setChatOpen] = useState(false)
-  const [message, setMessage] = useState('')
+  const { configured } = useAuth()
+  const route = parseRoute(pathname)
 
-  const filteredPlaces = places.filter((place) => {
-    const matchesSearch = `${place.name} ${place.location} ${place.category}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
+  const pageTitle = (() => {
+    if (route.name === 'home') return 'Experiencia SV — Descubre El Salvador'
+    // El detalle y el itinerario definen su título cuando cargan datos.
+    if (route.name === 'place' || route.name === 'itinerary') return null
+    return PAGE_TITLES[route.name] ?? 'Página no encontrada — Experiencia SV'
+  })()
 
-    const matchesCategory =
-      activeCategory === 'Todos' || place.category === activeCategory
+  useDocumentTitle(pageTitle)
 
-    return matchesSearch && matchesCategory
-  })
+  useEffect(() => {
+    if (route.name !== 'home') {
+      window.scrollTo({ top: 0, behavior: 'auto' })
+    }
+  }, [route.name, pathname])
+
+  // Navegación interna para los enlaces normales de las páginas nuevas. Los
+  // componentes existentes que ya llaman a navigate siguen funcionando porque
+  // su onClick marca el evento como prevenido.
+  useEffect(() => {
+    const handleDocumentClick = (event) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return
+      }
+
+      const anchor = event.target.closest?.('a')
+      if (!anchor) return
+      if (anchor.target && anchor.target !== '_self') return
+      if (anchor.hasAttribute('download')) return
+
+      const href = anchor.getAttribute('href')
+      if (
+        !href ||
+        href.startsWith('#') ||
+        href.startsWith('mailto:') ||
+        href.startsWith('tel:')
+      ) {
+        return
+      }
+
+      let url
+      try {
+        url = new URL(anchor.href, window.location.href)
+      } catch {
+        return
+      }
+
+      if (url.origin !== window.location.origin) return
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return
+
+      event.preventDefault()
+      navigate(`${url.pathname}${url.search}${url.hash}`)
+    }
+
+    document.addEventListener('click', handleDocumentClick)
+    return () => document.removeEventListener('click', handleDocumentClick)
+  }, [navigate])
+
+  const handleNavigateSection = (sectionId) => {
+    navigate(`/#${sectionId}`)
+  }
+
+  const authRoute = AUTH_ROUTES.has(route.name)
+  const showUnavailable =
+    !configured &&
+    (authRoute ||
+      route.name === 'account' ||
+      route.name === 'itineraries' ||
+      route.name === 'itinerary')
 
   return (
     <div className="app">
-      <header className="header">
-        <a className="brand" href="#" aria-label="Experiencia SV, inicio">
-          <span className="brand-icon">✳</span>
-          <span>
-            Experiencia<span className="brand-highlight">SV</span>
-          </span>
-        </a>
+      <a className="skip-link" href="#contenido">
+        Saltar al contenido
+      </a>
 
-        <nav className="nav">
-          <a href="#inicio">Inicio</a>
-          <a href="#destinos">Destinos</a>
-          <a href="#categorias">Categorías</a>
-        </nav>
+      <Header
+        pathname={pathname}
+        onNavigateSection={handleNavigateSection}
+        onNavigateHome={() => navigate('/')}
+      />
 
-        <a className="header-button" href="#destinos">
-          Explorar lugares <span>↗</span>
-        </a>
-      </header>
-
-      <main>
-        <section className="hero" id="inicio">
-          <div className="hero-content">
-            <span className="eyebrow">
-              <span className="status-dot" />
-              DESCUBRE EL SALVADOR
-            </span>
-
-            <h1>
-              Tu próxima aventura
-              <br />
-              comienza <span>aquí.</span>
-            </h1>
-
-            <p className="hero-description">
-              Encuentra lugares increíbles, descubre rincones únicos y
-              planifica experiencias inolvidables en El Salvador.
-            </p>
-
-            <form
-              className="search-box"
-              onSubmit={(event) => {
-                event.preventDefault()
-                document
-                  .getElementById('destinos')
-                  ?.scrollIntoView({ behavior: 'smooth' })
-              }}
-            >
-              <span className="search-icon">⌕</span>
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="¿A dónde quieres ir?"
-                aria-label="Buscar destinos o departamentos"
-              />
-              <button type="submit">Buscar <span>→</span></button>
-            </form>
-
-            <div className="hero-note">
-              <span>✦</span> Explora a tu ritmo. Vive a tu manera.
-            </div>
-          </div>
-
-          <div className="hero-visual">
-            <img
-              className="hero-image"
-              src="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1200&q=85"
-              alt="Paisaje natural para inspirar tu próxima aventura"
+      <main id="contenido" tabIndex={-1}>
+        <ErrorBoundary key={`${pathname}${search}${hash}`}>
+          {route.name === 'home' && (
+            <HomePage
+              search={search}
+              navigate={navigate}
+              onOpenChat={() => setChatOpen(true)}
             />
-            <div className="image-label">
-              <span className="image-label-icon">⌖</span>
-              <div>
-                <strong>Hay un lugar para ti</strong>
-                <span>Tu próxima historia comienza hoy</span>
-              </div>
-            </div>
-            <div className="floating-star">✳</div>
-          </div>
-        </section>
-
-        <section className="discovery" id="categorias">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">ENCUENTRA TU EXPERIENCIA</span>
-              <h2>¿Qué te gustaría descubrir?</h2>
-              <p>Hay muchas formas de enamorarte de El Salvador.</p>
-            </div>
-          </div>
-
-          <div className="categories">
-            <button
-              className={`category-chip ${activeCategory === 'Todos' ? 'selected' : ''}`}
-              onClick={() => setActiveCategory('Todos')}
-              type="button"
-            >
-              <span>✦</span> Todos
-            </button>
-
-            {categories.map((category) => (
-              <button
-                className={`category-chip ${activeCategory === category.name ? 'selected' : ''}`}
-                key={category.name}
-                onClick={() => setActiveCategory(category.name)}
-                type="button"
-              >
-                <span>{category.icon}</span>
-                {category.name}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="destinations" id="destinos">
-          <div className="destination-heading">
-            <div>
-              <span className="eyebrow">INSPÍRATE Y EXPLORA</span>
-              <h2>Lugares que te esperan</h2>
-            </div>
-            <span className="results-count">
-              {filteredPlaces.length} lugares
-            </span>
-          </div>
-
-          {filteredPlaces.length > 0 ? (
-            <div className="place-grid">
-              {filteredPlaces.map((place) => (
-                <article className="place-card" key={place.id}>
-                  <div className="place-image-wrapper">
-                    <img src={place.image} alt={place.name} loading="lazy" />
-                    <span className="place-category">{place.category}</span>
-                  </div>
-                  <div className="place-info">
-                    <span className="place-location">
-                      <span>⌖</span> {place.location}, El Salvador
-                    </span>
-                    <h3>{place.name}</h3>
-                    <p>{place.description}</p>
-                    <button
-                      className="place-link"
-                      type="button"
-                      onClick={() =>
-                        window.alert(
-                          `${place.name}\n\n${place.description}\n\nPróximamente podrás consultar detalles reales del lugar.`,
-                        )
-                      }
-                    >
-                      Descubrir lugar <span>↗</span>
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <span>⌕</span>
-              <h3>No encontramos lugares</h3>
-              <p>Prueba con otro nombre, departamento o categoría.</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch('')
-                  setActiveCategory('Todos')
-                }}
-              >
-                Limpiar filtros
-              </button>
-            </div>
           )}
-        </section>
 
-        <section className="assistant-banner">
-          <div className="assistant-icon">✳</div>
-          <div>
-            <span className="eyebrow">TU ASISTENTE DE VIAJES</span>
-            <h2>¿No sabes por dónde empezar?</h2>
-            <p>Cuéntanos qué te gusta y te ayudaremos a encontrar tu próxima aventura.</p>
-          </div>
-          <button type="button" onClick={() => setChatOpen(true)}>
-            Hablar con el asistente <span>→</span>
-          </button>
-        </section>
+          {route.name === 'place' && (
+            <PlaceDetailPage
+              key={route.placeId}
+              placeId={route.placeId}
+              search={search}
+              navigate={navigate}
+            />
+          )}
+
+          {showUnavailable && <AccountUnavailablePage navigate={navigate} />}
+
+          {configured && route.name === 'login' && (
+            <LoginPage search={search} hash={hash} navigate={navigate} />
+          )}
+
+          {configured && route.name === 'register' && (
+            <RegisterPage search={search} navigate={navigate} />
+          )}
+
+          {configured && route.name === 'forgot-password' && (
+            <ForgotPasswordPage navigate={navigate} />
+          )}
+
+          {configured && route.name === 'reset-password' && (
+            <ResetPasswordPage navigate={navigate} />
+          )}
+
+          {configured && route.name === 'account' && (
+            <RequireAuth
+              navigate={navigate}
+              pathname={pathname}
+              search={search}
+            >
+              <AccountPage navigate={navigate} />
+            </RequireAuth>
+          )}
+
+          {configured && route.name === 'itineraries' && (
+            <RequireAuth
+              navigate={navigate}
+              pathname={pathname}
+              search={search}
+            >
+              <ItinerariesPage
+                navigate={navigate}
+                onOpenChat={() => setChatOpen(true)}
+              />
+            </RequireAuth>
+          )}
+
+          {configured && route.name === 'itinerary' && (
+            <RequireAuth
+              navigate={navigate}
+              pathname={pathname}
+              search={search}
+            >
+              <ItineraryDetailPage
+                key={route.itineraryId}
+                itineraryId={route.itineraryId}
+                navigate={navigate}
+              />
+            </RequireAuth>
+          )}
+
+          {route.name === 'not-found' && <NotFoundPage navigate={navigate} />}
+        </ErrorBoundary>
       </main>
 
-      <footer className="footer">
-        <a className="brand" href="#inicio">
-          <span className="brand-icon">✳</span>
-          <span>
-            Experiencia<span className="brand-highlight">SV</span>
-          </span>
-        </a>
-        <p>Descubre lo extraordinario de El Salvador.</p>
-        <span>© {new Date().getFullYear()} Experiencia SV</span>
-      </footer>
+      <Footer pathname={pathname} onNavigateHome={() => navigate('/')} />
 
-      <button
-        className="chat-fab"
-        type="button"
-        aria-label={chatOpen ? 'Cerrar asistente' : 'Abrir asistente de viajes'}
-        onClick={() => setChatOpen(!chatOpen)}
-      >
-        {chatOpen ? '×' : '✳'}
-        {!chatOpen && <span className="chat-fab-label">¿Te ayudo a explorar?</span>}
-      </button>
-
-      {chatOpen && (
-        <aside className="chat-panel" aria-label="Asistente de viajes">
-          <div className="chat-header">
-            <div className="chat-avatar">✳</div>
-            <div>
-              <strong>Asistente Experiencia SV</strong>
-              <span><span className="status-dot" /> Listo para ayudarte</span>
-            </div>
-            <button
-              type="button"
-              aria-label="Cerrar chat"
-              onClick={() => setChatOpen(false)}
-            >
-              ×
-            </button>
-          </div>
-
-          <div className="chat-body">
-            <div className="chat-message">
-              ¡Hola! 👋 Soy tu asistente de viajes. ¿Qué tipo de lugares te
-              gustaría descubrir en El Salvador?
-            </div>
-            <div className="chat-suggestions">
-              {['Playas para visitar', 'Lugares de naturaleza', 'Un paseo económico'].map(
-                (suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => setMessage(suggestion)}
-                  >
-                    {suggestion}
-                  </button>
-                ),
-              )}
-            </div>
-            <p className="chat-disclaimer">
-              Este chat es una demostración visual. La conexión con la IA se
-              implementará en una siguiente etapa.
-            </p>
-          </div>
-
-          <form
-            className="chat-input"
-            onSubmit={(event) => {
-              event.preventDefault()
-              if (!message.trim()) return
-              window.alert(
-                'El chatbot todavía no está conectado a una IA. Tu mensaje fue: ' +
-                  message,
-              )
-              setMessage('')
-            }}
-          >
-            <input
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              placeholder="Escribe tu consulta..."
-              aria-label="Mensaje para el asistente"
-            />
-            <button type="submit" aria-label="Enviar mensaje">↑</button>
-          </form>
-        </aside>
-      )}
+      <ChatWidget
+        open={chatOpen}
+        onOpen={() => setChatOpen(true)}
+        onClose={() => setChatOpen(false)}
+        navigate={navigate}
+      />
     </div>
   )
 }

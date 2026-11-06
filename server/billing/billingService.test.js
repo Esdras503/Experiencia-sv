@@ -33,6 +33,21 @@ test('la facturación solo se activa con credenciales de servidor', () => {
   assert.equal(enabled.enabled, true)
   assert.equal(enabled.paymentsEnabled, false)
   assert.equal(enabled.secureCookies, false)
+
+  const demo = resolveBillingConfig({
+    SUPABASE_URL: URL,
+    SUPABASE_ANON_KEY: ANON,
+    SUPABASE_SERVICE_ROLE_KEY: SERVICE,
+    BILLING_ANONYMOUS_SECRET: 'secreto-anonimo-suficientemente-largo',
+    DEMO_MODE: 'true',
+  })
+  assert.equal(demo.demoMode, true)
+
+  const explicitCommercial = resolveBillingConfig({
+    DEMO_MODE: 'true',
+    VITE_DEMO_MODE: 'false',
+  })
+  assert.equal(explicitCommercial.demoMode, false)
 })
 
 test('sin configuración el servicio no bloquea el chat y no expone consumo', async () => {

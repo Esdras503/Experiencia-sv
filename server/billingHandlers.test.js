@@ -357,6 +357,43 @@ test('el modo demostración omite la reserva y no devuelve consumo de plan', asy
   assert.equal(billing.calls.releaseChat.length, 0)
 })
 
+test('el alias de runtime DEMO_MODE también desactiva la validación de plan', async () => {
+  const billing = makeBilling({
+    async resolveContext() {
+      throw new AppError(ERROR_CODES.BILLING_UNAVAILABLE, { status: 503 })
+    },
+    async reserveChat() {
+      throw new AppError(ERROR_CODES.BILLING_UNAVAILABLE, { status: 503 })
+    },
+  })
+  const ai = createFakeAi([
+    finalStep({ message: 'Modo feria activo.', recommendedPlaceIds: [] }),
+  ])
+  const handler = makeHandler({
+    billingService: billing,
+    aiClient: ai,
+    env: { DEMO_MODE: 'true' },
+  })
+
+  const response = await handler(chatRequest())
+
+  assert.equal(response.status, 200)
+  assert.equal(response.json.message, 'Modo feria activo.')
+  assert.equal(billing.calls.resolveContext.length, 0)
+  assert.equal(billing.calls.reserveChat.length, 0)
+
+  const config = await handler({
+    method: 'GET',
+    pathname: '/api/config',
+    body: {},
+    query: {},
+    headers: {},
+    ip: '203.0.113.57',
+  })
+  assert.equal(config.json.demo.enabled, true)
+  assert.equal(config.json.billing.demoMode, true)
+})
+
 test('/api/billing/status y /api/config exponen el modo demostración sin cuotas', async () => {
   const billing = createBillingService({ env: { VITE_DEMO_MODE: 'true' } })
   const handler = makeHandler({

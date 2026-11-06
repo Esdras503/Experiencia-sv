@@ -63,7 +63,8 @@ gestión de itinerarios sin entrar en detalles de despliegue.
     reservas ni ingresos que todavía no existen.
 - **Fase 7 (esta entrega):** modo demostración/feria global:
   - se activa con `VITE_DEMO_MODE=true` y se aplica en el backend, no solo en
-    React; el frontend y el API leen la misma variable;
+    React; el frontend y el API leen la misma variable. El backend también acepta
+    `DEMO_MODE=true` como alias de runtime;
   - todas las funciones y planes quedan disponibles sin pagos, suscripciones ni
     cuotas de plan;
   - se conservan los nombres, precios, características y límites del catálogo
@@ -275,12 +276,16 @@ muestran `Configuración pendiente`. No hay datos simulados de cuentas.
 | Variable | ¿Obligatoria? | Uso |
 | --- | --- | --- |
 | `VITE_DEMO_MODE` | No | `true` activa la feria: funciones y planes disponibles sin pago, sin cuotas de suscripción y con el checkout deshabilitado. `false` (por defecto) conserva el modo comercial. Es pública y se incorpora al bundle; debe existir con el mismo valor en el build y en el runtime de Vercel. |
+| `DEMO_MODE` | No | Alias opcional **solo para el backend**, útil si ya existía ese nombre. Si `VITE_DEMO_MODE` tiene un valor no vacío, tiene prioridad. No se incorpora al bundle. |
 
 `VITE_DEMO_MODE` no es un secreto ni una autorización por sí sola. El backend
 la vuelve a leer de `process.env`, expone `demoMode` en `/api/billing/status` y
 `/api/config`, y solo ese valor del servidor decide si se omiten las cuotas. No
 confíes en un botón ni en una variable del navegador para desbloquear datos
-privados: RLS y las comprobaciones del API siguen activas.
+privados: RLS y las comprobaciones del API siguen activas. Para una feria, lo
+más seguro es definir `VITE_DEMO_MODE=true` en build y runtime; el alias
+`DEMO_MODE=true` también permite activar el backend sin recompilar, pero el
+banner puede aparecer recién cuando responde `/api/billing/status`.
 
 No existe ninguna variable `VITE_*` con secretos: la interfaz no maneja
 contraseñas, tokens privados, la clave de IA ni la `service_role`. Las variables
@@ -559,6 +564,8 @@ Para una feria o una demostración controlada, define `VITE_DEMO_MODE=true` en e
 entorno de build **y** en el entorno de las funciones serverless. En Vercel,
 añádela en Production y Preview; después vuelve a desplegar para que Vite la
 incorpore. En local, cámbiala en `.env` y reinicia tanto Vite como `npm run api`.
+El backend también acepta `DEMO_MODE=true` como alias de runtime; si
+`VITE_DEMO_MODE` tiene un valor no vacío, ese valor manda.
 
 Con la demo activa:
 
@@ -574,8 +581,9 @@ Con la demo activa:
 - El estado del plan, el consumo y el banner global vienen de
   `/api/billing/status`; el frontend no puede activar la demo por su cuenta.
 
-Para desactivarla, vuelve a `VITE_DEMO_MODE=false` y redespliega. El backend
-escribe `app_settings.demo_mode=false` al arrancar el servicio de facturación si
+Para desactivarla, vuelve a `VITE_DEMO_MODE=false` (o a `DEMO_MODE=false` si
+usabas solo el alias) y redespliega. El backend escribe
+`app_settings.demo_mode=false` al arrancar el servicio de facturación si
 tiene `service_role`, de modo que el trigger de itinerarios recupera el límite
 comercial. Si no hay `service_role`, aplica la migración de Fase 7 y ejecuta el
 cambio de indicador una sola vez desde el SQL Editor; no desactives RLS ni
@@ -976,9 +984,11 @@ de Supabase y un buzón temporal:
    `CHAT_SIGNING_SECRET` estable (mínimo 16 caracteres).
 7. Para la feria, define `VITE_DEMO_MODE=true` en **Production y Preview**,
    vuelve a desplegar y comprueba que `/api/config` devuelve
-   `demo.enabled:true` y `billing.enabled:false`. Para volver al modo comercial,
-   cámbiala a `false` y redespliega. No configures la demo como una variable
-   secreta: es pública.
+   `demo.enabled:true` y `billing.enabled:false`. Si el build ya está hecho y
+   solo quieres habilitar el backend, puedes usar `DEMO_MODE=true` como alias,
+   pero el banner aparecerá cuando responda `/api/billing/status`. Para volver
+   al modo comercial, define `VITE_DEMO_MODE=false` y redespliega. No configures
+   la demo como una variable secreta: es pública.
 8. No configures secretos con el prefijo `VITE_`: Vite los expondría al
    navegador. La clave de IA y la `service_role` solo pueden vivir en el backend.
 9. En Supabase, actualiza **Authentication > URL Configuration** con el dominio
@@ -1044,6 +1054,14 @@ Notas:
   `SUPABASE_SERVICE_ROLE_KEY` y/o `BILLING_ANONYMOUS_SECRET`, o la migración de
   Fase 6 no se aplicó. El chat sigue funcionando, pero sin cupos. Redespliega
   después de añadir las variables.
+- Si en modo demostración el chat responde `BILLING_UNAVAILABLE` con el mensaje
+  «No pudimos verificar tu plan», el backend no está viendo el indicador. Abre
+  `GET /api/config` y comprueba `demo.enabled:true` y `billing.demoMode:true`.
+  Define `VITE_DEMO_MODE=true` en el entorno de **runtime** (no solo en el build)
+  o el alias `DEMO_MODE=true`, y vuelve a desplegar. No desactives RLS ni pongas
+  la `service_role` en el navegador para evitar el error. Si el indicador sí es
+  true y el error continúa, revisa los logs de la función: puede ser una versión
+  anterior desplegada sin el código de Fase 7.
 - Si `/api/billing/status` devuelve 503 `BILLING_UNAVAILABLE`, revisa que las
   funciones SQL de la Fase 6 existan y que `service_role` tenga permiso de
   ejecutarlas. No uses la clave de servicio en el navegador para “probar”.

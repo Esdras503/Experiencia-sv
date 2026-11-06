@@ -21,6 +21,14 @@ test('interpreta el indicador de demostración solo con valores explícitos', ()
   assert.equal(parseDemoMode(false), false)
   assert.equal(resolveDemoMode({ VITE_DEMO_MODE: 'true' }), true)
   assert.equal(resolveDemoMode({ VITE_DEMO_MODE: 'false' }), false)
+  assert.equal(resolveDemoMode({ DEMO_MODE: 'true' }), true)
+  assert.equal(resolveDemoMode({ DEMO_MODE: 'false' }), false)
+  assert.equal(
+    resolveDemoMode({ VITE_DEMO_MODE: 'false', DEMO_MODE: 'true' }),
+    false,
+    'VITE_DEMO_MODE explícita tiene prioridad sobre el alias de runtime',
+  )
+  assert.equal(resolveDemoMode({ VITE_DEMO_MODE: '', DEMO_MODE: 'true' }), true)
   assert.equal(resolveDemoMode({}), false)
 })
 

@@ -15,6 +15,9 @@ setDefaultResultOrder('ipv4first')
 
 export const NOMINATIM_DEFAULT_URL = 'https://nominatim.openstreetmap.org'
 export const OVERPASS_DEFAULT_URL = 'https://overpass-api.de/api/interpreter'
+// Espejo público con datos globales. Se usa cuando el servidor principal está
+// saturado o no responde dentro del primer intento.
+export const OVERPASS_FALLBACK_URL = 'https://overpass.openstreetmap.fr/api/interpreter'
 export const DEFAULT_OSM_USER_AGENT = 'ExperienciaSV/1.0'
 export const DEFAULT_NOMINATIM_INTERVAL_MS = 1100
 export const SV_BBOX = '12.9,-90.2,14.5,-87.6'
@@ -23,6 +26,17 @@ const OVERPASS_MAX_CONCURRENCY = 2
 const OVERPASS_TIMEOUT_SECONDS = 20
 const NOMINATIM_TIMEOUT_MS = 12000
 const OVERPASS_TIMEOUT_MS = 25000
+const OVERPASS_PRIMARY_TIMEOUT_MS = 5000
+const OVERPASS_RETRYABLE_CODES = new Set([
+  ERROR_CODES.UPSTREAM_UNAVAILABLE,
+  ERROR_CODES.UPSTREAM_TIMEOUT,
+  ERROR_CODES.UPSTREAM_RATE_LIMITED,
+  ERROR_CODES.NETWORK_ERROR,
+])
+
+function shouldRetryOverpass(error) {
+  return error instanceof AppError && OVERPASS_RETRYABLE_CODES.has(error.code)
+}
 
 function defaultSleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
@@ -158,12 +172,16 @@ export function createOsmClient({
   userAgent = DEFAULT_OSM_USER_AGENT,
   nominatimUrl = NOMINATIM_DEFAULT_URL,
   overpassUrl = OVERPASS_DEFAULT_URL,
+  overpassFallbackUrl = OVERPASS_FALLBACK_URL,
   minIntervalMs = DEFAULT_NOMINATIM_INTERVAL_MS,
   now = Date.now,
   sleep = defaultSleep,
 } = {}) {
   const nominatimBase = stripTrailingSlash(nominatimUrl)
   const overpassBase = stripTrailingSlash(overpassUrl)
+  const overpassFallbackBase = overpassFallbackUrl
+    ? stripTrailingSlash(overpassFallbackUrl)
+    : ''
   const effectiveUserAgent = userAgent || DEFAULT_OSM_USER_AGENT
 
   let lastNominatimAt = -Infinity
@@ -273,19 +291,20 @@ export function createOsmClient({
     return assertArrayPayload(payload).map(fromNominatim).filter(Boolean)
   }
 
-  async function overpassRequest(query, { timeoutMs = OVERPASS_TIMEOUT_MS } = {}) {
-    const effectiveTimeoutMs = normalizeOverpassTimeout(timeoutMs)
-    const payload = await withOverpassSlot(() =>
-      requestJson(overpassBase, {
+  function requestOverpass(endpoint, query, timeoutMs) {
+    return withOverpassSlot(() =>
+      requestJson(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: `data=${encodeURIComponent(query)}`,
-        timeoutMs: effectiveTimeoutMs,
+        timeoutMs,
       }),
     )
+  }
 
+  function parseOverpassPayload(payload) {
     if (!payload || typeof payload !== 'object' || !Array.isArray(payload.elements)) {
       throw new AppError(ERROR_CODES.UPSTREAM_UNAVAILABLE, { status: 503 })
     }
@@ -298,6 +317,35 @@ export function createOsmClient({
     }
 
     return payload.elements
+  }
+
+  async function overpassRequest(query, { timeoutMs = OVERPASS_TIMEOUT_MS } = {}) {
+    const effectiveTimeoutMs = normalizeOverpassTimeout(timeoutMs)
+    const endpoints = [overpassBase, overpassFallbackBase].filter(
+      (endpoint, index, list) => endpoint && list.indexOf(endpoint) === index,
+    )
+    let lastError = null
+
+    for (let index = 0; index < endpoints.length; index += 1) {
+      const endpoint = endpoints[index]
+      const isPrimary = index === 0
+      const attemptTimeoutMs =
+        isPrimary && endpoints.length > 1
+          ? Math.min(effectiveTimeoutMs, OVERPASS_PRIMARY_TIMEOUT_MS)
+          : effectiveTimeoutMs
+
+      try {
+        const payload = await requestOverpass(endpoint, query, attemptTimeoutMs)
+        return parseOverpassPayload(payload)
+      } catch (error) {
+        lastError = error
+        if (!isPrimary || !shouldRetryOverpass(error)) {
+          throw error
+        }
+      }
+    }
+
+    throw lastError ?? new AppError(ERROR_CODES.UPSTREAM_UNAVAILABLE, { status: 503 })
   }
 
   async function overpassSearch({

@@ -2241,6 +2241,21 @@ h2[id] {
   }
 }
 
+@media (max-width: 880px) {
+  .header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .nav {
+    order: 3;
+    width: 100%;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+  }
+}
+
 @media (max-width: 700px) {
   .header {
     flex-wrap: wrap;

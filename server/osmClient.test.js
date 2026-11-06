@@ -4,6 +4,8 @@ import {
   buildOverpassQuery,
   createOsmClient,
   DEFAULT_OSM_USER_AGENT,
+  OVERPASS_DEFAULT_URL,
+  OVERPASS_FALLBACK_URL,
   SV_BBOX,
 } from './osmClient.js'
 import { ERROR_CODES } from './errors.js'
@@ -132,6 +134,35 @@ test('la búsqueda por categoría usa Overpass con etiquetas y área', async () 
   assert.ok(query.includes('["leisure"="park"]'))
   assert.ok(query.includes('(around:5000,13.4,-89.1)'))
   assert.ok(query.includes('out center 20;'))
+})
+
+test('la búsqueda por categoría usa el espejo de Overpass si el principal falla', async () => {
+  const { fetchImpl, calls } = createFetcher([
+    jsonResponse(502, { error: 'capacity' }),
+    jsonResponse(200, {
+      elements: [
+        {
+          type: 'node',
+          id: 77,
+          lat: 13.2,
+          lon: -88.5,
+          tags: { name: 'Playa de prueba', natural: 'beach' },
+        },
+      ],
+    }),
+  ])
+  const client = createOsmClient({ fetchImpl, minIntervalMs: 0 })
+
+  const result = await client.search({
+    category: { key: 'playas', osmFilters: [{ natural: 'beach' }] },
+    pageSize: 20,
+  })
+
+  assert.equal(result.source, 'overpass')
+  assert.equal(result.items.length, 1)
+  assert.equal(calls.length, 2)
+  assert.equal(calls[0].url, OVERPASS_DEFAULT_URL)
+  assert.equal(calls[1].url, OVERPASS_FALLBACK_URL)
 })
 
 test('buildOverpassQuery usa el bbox de El Salvador sin centro y escapa el texto', () => {

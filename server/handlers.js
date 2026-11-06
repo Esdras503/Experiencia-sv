@@ -29,6 +29,7 @@ import {
   DEFAULT_OSM_USER_AGENT,
   NOMINATIM_DEFAULT_URL,
   OVERPASS_DEFAULT_URL,
+  OVERPASS_FALLBACK_URL,
 } from './osmClient.js'
 import { toPublicPlace, toPublicPlaceDetails } from './osmMapper.js'
 import { resolveAiConfig } from './aiConfig.js'
@@ -218,6 +219,7 @@ export function createRequestHandler({
       userAgent: env.OSM_USER_AGENT || DEFAULT_OSM_USER_AGENT,
       nominatimUrl: env.NOMINATIM_URL || NOMINATIM_DEFAULT_URL,
       overpassUrl: env.OVERPASS_URL || OVERPASS_DEFAULT_URL,
+      overpassFallbackUrl: env.OVERPASS_FALLBACK_URL || OVERPASS_FALLBACK_URL,
       minIntervalMs: resolveMinInterval(env.NOMINATIM_MIN_INTERVAL_MS),
       now,
     })

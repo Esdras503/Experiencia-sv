@@ -225,6 +225,7 @@ muestran `Configuración pendiente`. No hay datos simulados de cuentas.
 | `OSM_USER_AGENT` | Recomendada; obligatoria en producción | Identifica la aplicación ante Nominatim y Overpass. Incluye nombre, URL y contacto. |
 | `NOMINATIM_URL` | No | Endpoint de Nominatim. Por defecto `https://nominatim.openstreetmap.org`. |
 | `OVERPASS_URL` | No | Endpoint de Overpass. Por defecto `https://overpass-api.de/api/interpreter`. |
+| `OVERPASS_FALLBACK_URL` | No | Endpoint de respaldo si el principal está saturado o no responde. Por defecto `https://overpass.openstreetmap.fr/api/interpreter`. |
 | `NOMINATIM_MIN_INTERVAL_MS` | No | Espera mínima entre solicitudes a Nominatim. Por defecto `1100` ms (política: 1 req/s). |
 | `OSM_TILE_URL` | No | Plantilla de teselas del mapa. Debe ser HTTPS y contener `{z}`, `{x}` e `{y}`. |
 | `OSM_TILE_ATTRIBUTION` | No | Atribución HTML dibujada en el mapa. Debe mantener la de OSM. |
@@ -658,11 +659,13 @@ HttpOnly firmada y un hash, no la IP ni coordenadas.
 - Máximo 2 consultas simultáneas y tiempo de espera de 20 s.
 - Con una referencia y radio se usa `around`; sin referencia se usa el
   rectángulo que cubre El Salvador.
-- El servidor público `overpass-api.de` puede saturarse. Si ocurre, configura
-  `OVERPASS_URL` con otro espejo público (por ejemplo
-  `https://overpass.kumi.systems/api/interpreter`) o con una instancia propia.
-  Las consultas por categoría a todo el país son las más pesadas: si tardan,
-  la interfaz sugiere acotar con una referencia y un radio.
+- El servidor público `overpass-api.de` puede saturarse. La API intenta primero
+  ese endpoint durante un máximo de 5 s y, si falla o se agota el tiempo, usa
+  automáticamente `OVERPASS_FALLBACK_URL` (`overpass.openstreetmap.fr` por
+  defecto). También puedes configurar `OVERPASS_URL` con otro espejo público o
+  con una instancia propia. Las consultas por categoría a todo el país son las
+  más pesadas: si tardan, la interfaz sugiere acotar con una referencia y un
+  radio.
 
 ### Teselas del mapa
 

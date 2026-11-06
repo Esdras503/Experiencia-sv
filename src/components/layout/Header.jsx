@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../context/authContext.js'
+import BrandLogo from '../brand/BrandLogo.jsx'
 
 const sections = [
   { id: 'inicio', label: 'Inicio' },
@@ -64,13 +65,13 @@ export default function Header({ pathname, onNavigateSection, onNavigateHome }) 
 
   return (
     <header className="header">
-      <a className="brand" href={isHome ? '#inicio' : '/'} onClick={handleBrandClick}>
-        <span className="brand-icon" aria-hidden="true">
-          ✳
-        </span>
-        <span>
-          Experiencia<span className="brand-highlight">SV</span>
-        </span>
+      <a
+        className="brand"
+        href={isHome ? '#inicio' : '/'}
+        onClick={handleBrandClick}
+        aria-label="Experiencia SV — Inicio"
+      >
+        <BrandLogo decorative />
       </a>
 
       <nav className="nav" aria-label="Navegación principal">

@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import BrandLogo from '../brand/BrandLogo.jsx'
 
 const ChatButton = forwardRef(function ChatButton({ open, onToggle }, ref) {
   return (
@@ -15,7 +16,11 @@ const ChatButton = forwardRef(function ChatButton({ open, onToggle }, ref) {
       }
       onClick={onToggle}
     >
-      <span aria-hidden="true">{open ? '×' : '✳'}</span>
+      {open ? (
+        <span aria-hidden="true">×</span>
+      ) : (
+        <BrandLogo variant="icon" className="chat-fab-logo" decorative />
+      )}
       {!open && (
         <span className="chat-fab-label" aria-hidden="true">
           ¿Te ayudo a explorar?

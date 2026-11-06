@@ -394,6 +394,31 @@ test('el alias de runtime DEMO_MODE también desactiva la validación de plan', 
   assert.equal(config.json.billing.demoMode, true)
 })
 
+test('con DEMO_MODE=true una sesión expirada no bloquea el chat', async () => {
+  const billing = makeBilling({
+    async resolveContext() {
+      throw new AppError(ERROR_CODES.SESSION_EXPIRED, { status: 401 })
+    },
+  })
+  const ai = createFakeAi([
+    finalStep({ message: 'La feria sigue disponible.', recommendedPlaceIds: [] }),
+  ])
+  const handler = makeHandler({
+    billingService: billing,
+    aiClient: ai,
+    env: { DEMO_MODE: 'true' },
+  })
+
+  const response = await handler(
+    chatRequest({}, { headers: { authorization: 'Bearer token-vencido' } }),
+  )
+
+  assert.equal(response.status, 200)
+  assert.equal(response.json.message, 'La feria sigue disponible.')
+  assert.equal(billing.calls.resolveContext.length, 0)
+  assert.equal(billing.calls.reserveChat.length, 0)
+})
+
 test('/api/billing/status y /api/config exponen el modo demostración sin cuotas', async () => {
   const billing = createBillingService({ env: { VITE_DEMO_MODE: 'true' } })
   const handler = makeHandler({

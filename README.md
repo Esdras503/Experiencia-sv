@@ -1062,6 +1062,12 @@ Notas:
   la `service_role` en el navegador para evitar el error. Si el indicador sí es
   true y el error continúa, revisa los logs de la función: puede ser una versión
   anterior desplegada sin el código de Fase 7.
+- Si el chat muestra «Tu sesión expiró» durante una demo, el backend volvió a
+  entrar en la verificación comercial: con `demo.enabled:true` no se valida el
+  token ni se exige sesión. Comprueba otra vez `/api/config` en el mismo dominio
+  que estás usando. Si `demo.enabled:false`, la causa es configuración del
+  despliegue, no el proveedor de IA. En modo comercial, en cambio, una sesión
+  vencida debe renovarse o volver a iniciar sesión; no se omite esa validación.
 - Si `/api/billing/status` devuelve 503 `BILLING_UNAVAILABLE`, revisa que las
   funciones SQL de la Fase 6 existan y que `service_role` tenga permiso de
   ejecutarlas. No uses la clave de servicio en el navegador para “probar”.

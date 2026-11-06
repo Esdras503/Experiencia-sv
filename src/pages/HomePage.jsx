@@ -12,6 +12,7 @@ import EmptyState from '../components/ui/EmptyState'
 import ErrorState from '../components/ui/ErrorState'
 import LoadingState from '../components/ui/LoadingState'
 import SafeImage from '../components/ui/SafeImage'
+import BrandLogo from '../components/brand/BrandLogo.jsx'
 
 const SEARCH_SUGGESTIONS = [
   'Playa El Tunco',
@@ -187,7 +188,7 @@ export default function HomePage({ search, navigate, onOpenChat }) {
             </div>
           </div>
           <div className="floating-star" aria-hidden="true">
-            ✳
+            <BrandLogo variant="icon" className="floating-star-logo" decorative />
           </div>
         </div>
       </section>
@@ -309,7 +310,7 @@ export default function HomePage({ search, navigate, onOpenChat }) {
 
       <section className="assistant-banner" aria-labelledby="assistant-title">
         <div className="assistant-icon" aria-hidden="true">
-          ✳
+          <BrandLogo variant="icon" className="assistant-logo" decorative />
         </div>
         <div>
           <span className="eyebrow">TU ASISTENTE DE VIAJES</span>

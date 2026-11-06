@@ -110,28 +110,22 @@ h2[id] {
 
 .brand {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 10px;
-  font-family: 'Manrope', sans-serif;
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -1px;
-  white-space: nowrap;
 }
 
-.brand-icon {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 11px;
-  color: #fff;
-  background: var(--green);
-  font-size: 23px;
+.brand-logo {
+  display: block;
+  width: auto;
+  max-width: 100%;
 }
 
-.brand-highlight {
-  color: var(--green);
+.header .brand-logo {
+  height: 42px;
+}
+
+.footer .brand-logo {
+  height: 30px;
 }
 
 .nav {
@@ -428,8 +422,11 @@ h2[id] {
   border: 5px solid #fbfaf7;
   border-radius: 50%;
   background: #d9e7d6;
-  color: var(--green);
-  font-size: 23px;
+}
+
+.floating-star-logo {
+  width: 39px;
+  height: 39px;
 }
 
 /* Descubrimiento */
@@ -954,8 +951,12 @@ h2[id] {
   height: 53px;
   border-radius: 15px;
   background: var(--green);
-  color: #fff;
-  font-size: 27px;
+}
+
+.assistant-logo {
+  width: 53px;
+  height: 53px;
+  border-radius: 15px;
 }
 
 .assistant-banner > div:nth-child(2) {
@@ -990,16 +991,6 @@ h2[id] {
   border-top: 1px solid var(--border);
 }
 
-.footer .brand {
-  font-size: 17px;
-}
-
-.footer .brand-icon {
-  width: 30px;
-  height: 30px;
-  font-size: 20px;
-}
-
 .footer p,
 .footer > span {
   color: var(--muted);
@@ -1029,6 +1020,12 @@ h2[id] {
   inset: 0;
   z-index: 19;
   background: rgba(10, 31, 22, 0.32);
+}
+
+.chat-fab-logo {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
 }
 
 .chat-fab {
@@ -1092,7 +1089,11 @@ h2[id] {
   height: 39px;
   border-radius: 12px;
   background: #ffffff21;
-  font-size: 22px;
+}
+
+.chat-avatar-logo {
+  width: 31px;
+  height: 31px;
 }
 
 .chat-header > div:nth-child(2) {
@@ -2248,8 +2249,12 @@ h2[id] {
     padding: 14px 5%;
   }
 
-  .brand {
-    font-size: 18px;
+  .header .brand-logo {
+    height: 32px;
+  }
+
+  .footer .brand-logo {
+    height: 27px;
   }
 
   .header-button {
@@ -2412,14 +2417,12 @@ h2[id] {
 }
 
 @media (max-width: 420px) {
-  .brand {
-    font-size: 17px;
+  .header .brand-logo {
+    height: 27px;
   }
 
-  .brand-icon {
-    width: 32px;
-    height: 32px;
-    font-size: 21px;
+  .footer .brand-logo {
+    height: 25px;
   }
 
   .header-button {
@@ -2556,6 +2559,21 @@ button:disabled {
   box-shadow: var(--shadow);
 }
 
+.auth-brand {
+  display: inline-flex;
+  margin-bottom: 22px;
+}
+
+.auth-brand .brand-logo {
+  height: 38px;
+}
+
+.auth-aside-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+}
+
 .auth-card h1,
 .account-heading h1,
 .saved-heading h1,
@@ -2585,17 +2603,6 @@ button:disabled {
   background:
     radial-gradient(circle at 92% 8%, #ffffffb0 0 12%, transparent 13%),
     linear-gradient(145deg, #e9f1e5, #f7f6ef);
-}
-
-.auth-aside-icon {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
-  background: var(--green);
-  color: #fff;
-  font-size: 30px;
 }
 
 .auth-aside h2 {
@@ -2917,14 +2924,15 @@ button:disabled {
 
 .itinerary-card-icon {
   display: grid;
-  flex: 0 0 auto;
+  flex: 0 0 38px;
   place-items: center;
   width: 38px;
   height: 38px;
-  border-radius: 12px;
-  background: var(--green-light);
-  color: var(--green);
-  font-size: 22px;
+}
+
+.itinerary-card-logo {
+  width: 38px;
+  height: 38px;
 }
 
 .itinerary-card h2 {
@@ -2995,10 +3003,11 @@ button:disabled {
   place-items: center;
   width: 56px;
   height: 56px;
-  border-radius: 18px;
-  background: var(--green-light);
-  color: var(--green);
-  font-size: 30px;
+}
+
+.saved-empty-logo {
+  width: 56px;
+  height: 56px;
 }
 
 .saved-empty h2 {
@@ -3446,6 +3455,10 @@ button:disabled {
     border-radius: 18px;
   }
 
+  .auth-brand .brand-logo {
+    height: 34px;
+  }
+
   .auth-card h1,
   .account-heading h1,
   .saved-heading h1,
@@ -3517,6 +3530,14 @@ button:disabled {
   .auth-card,
   .auth-aside {
     padding: 18px;
+  }
+
+  .auth-brand {
+    margin-bottom: 18px;
+  }
+
+  .auth-brand .brand-logo {
+    height: 30px;
   }
 
   .auth-actions .button-primary,

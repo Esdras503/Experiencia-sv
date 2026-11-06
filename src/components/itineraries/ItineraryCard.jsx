@@ -1,3 +1,5 @@
+import BrandLogo from '../brand/BrandLogo.jsx'
+
 function formatDate(value) {
   if (!value) return null
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value)
@@ -32,7 +34,7 @@ export default function ItineraryCard({ record }) {
     <article className="itinerary-card">
       <div className="itinerary-card-heading">
         <span className="itinerary-card-icon" aria-hidden="true">
-          ✳
+          <BrandLogo variant="icon" className="itinerary-card-logo" decorative />
         </span>
         <div>
           <h2>

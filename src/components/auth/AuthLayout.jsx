@@ -1,3 +1,5 @@
+import BrandLogo from '../brand/BrandLogo.jsx'
+
 export default function AuthLayout({
   eyebrow = 'TU CUENTA',
   title,
@@ -8,6 +10,13 @@ export default function AuthLayout({
   return (
     <section className="auth-page" aria-labelledby="auth-title">
       <div className="auth-card">
+        <a
+          className="auth-brand"
+          href="/"
+          aria-label="Experiencia SV — Inicio"
+        >
+          <BrandLogo decorative />
+        </a>
         <span className="eyebrow">{eyebrow}</span>
         <h1 id="auth-title">{title}</h1>
         {description && <p className="auth-description">{description}</p>}
@@ -16,9 +25,7 @@ export default function AuthLayout({
       </div>
 
       <aside className="auth-aside" aria-label="Ventajas de tener una cuenta">
-        <span className="auth-aside-icon" aria-hidden="true">
-          ✳
-        </span>
+        <BrandLogo variant="icon" className="auth-aside-logo" decorative />
         <h2>Tu viaje, en un solo lugar</h2>
         <ul>
           <li>Guarda los itinerarios que creas con el asistente.</li>

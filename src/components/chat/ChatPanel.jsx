@@ -2,6 +2,7 @@ import { forwardRef, useEffect } from 'react'
 import { MAX_CHAT_MESSAGE_LENGTH } from '../../../shared/chat.js'
 import ChatItinerary from './ChatItinerary'
 import ChatPlaceCard from './ChatPlaceCard'
+import BrandLogo from '../brand/BrandLogo.jsx'
 
 function resizeTextarea(node) {
   if (!node) return
@@ -78,7 +79,7 @@ const ChatPanel = forwardRef(function ChatPanel(
     >
       <div className="chat-header">
         <div className="chat-avatar" aria-hidden="true">
-          ✳
+          <BrandLogo variant="icon" className="chat-avatar-logo" decorative />
         </div>
         <div className="chat-header-text">
           <strong id="chat-title">Asistente Experiencia SV</strong>

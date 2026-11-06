@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/authContext.js'
 import { listItineraries } from '../services/itinerariesService.js'
 import ItineraryCard from '../components/itineraries/ItineraryCard.jsx'
+import BrandLogo from '../components/brand/BrandLogo.jsx'
 import ErrorState from '../components/ui/ErrorState.jsx'
 import LoadingState from '../components/ui/LoadingState.jsx'
 
@@ -85,7 +86,7 @@ export default function ItinerariesPage({ navigate, onOpenChat }) {
       {status === 'success' && itineraries.length === 0 && (
         <div className="saved-empty">
           <span className="saved-empty-icon" aria-hidden="true">
-            ✳
+            <BrandLogo variant="icon" className="saved-empty-logo" decorative />
           </span>
           <h2>Todavía no has guardado ningún itinerario</h2>
           <p>

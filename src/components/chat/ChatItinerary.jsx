@@ -47,7 +47,9 @@ export default function ChatItinerary({
   savedItineraryId = null,
   isAuthenticated = false,
   accountsConfigured = true,
+  saveLimitReached = false,
   onRequireAuth,
+  onOpenPlans = null,
 }) {
   if (!itinerary || !Array.isArray(itinerary.stops) || itinerary.stops.length === 0) {
     return null
@@ -235,6 +237,12 @@ export default function ChatItinerary({
           <p className="chat-save-error" role="alert">
             {saveError}
           </p>
+        )}
+
+        {saveLimitReached && !savedItineraryId && onOpenPlans && (
+          <button type="button" className="chat-save-limit-link" onClick={onOpenPlans}>
+            Ver planes y límites
+          </button>
         )}
       </div>
 

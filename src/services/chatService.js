@@ -6,13 +6,15 @@ const NETWORK_ERROR_MESSAGE =
 const EMPTY_RESPONSE_MESSAGE =
   'El asistente no devolvió una respuesta válida. Intenta reformular tu mensaje.'
 
-async function requestChat(payload, { signal } = {}) {
+async function requestChat(payload, { signal, accessToken } = {}) {
   let response
+  const headers = { 'Content-Type': 'application/json' }
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`
 
   try {
     response = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(payload),
       signal,
     })
@@ -32,6 +34,7 @@ async function requestChat(payload, { signal } = {}) {
       data?.error?.code ?? 'INTERNAL',
       data?.error?.message ?? 'No se pudo obtener respuesta del asistente.',
       response.status,
+      data?.error?.details ?? null,
     )
   }
 
@@ -50,7 +53,13 @@ async function requestChat(payload, { signal } = {}) {
  * firmado (`itineraryToken`) que el servidor valida antes de usarlo.
  */
 export async function sendChatMessage(
-  { message, sessionId = null, history = [], itineraryToken = null },
+  {
+    message,
+    sessionId = null,
+    history = [],
+    itineraryToken = null,
+    requestId = null,
+  },
   options = {},
 ) {
   if (typeof message !== 'string' || !message.trim()) {
@@ -63,6 +72,7 @@ export async function sendChatMessage(
       sessionId,
       history: Array.isArray(history) ? history : [],
       itineraryToken: itineraryToken ?? null,
+      ...(requestId ? { requestId } : {}),
     },
     options,
   )

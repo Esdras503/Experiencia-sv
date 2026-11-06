@@ -125,8 +125,10 @@ export function createNodeHandler(handleRequest, { logError = console.error } = 
             error: {
               code: error.code,
               message: error.message || publicMessageFor(error.code),
+              ...(error.details ? { details: error.details } : {}),
             },
           },
+          headers: error.headers,
         }
       } else {
         logError('[api] error inesperado', {

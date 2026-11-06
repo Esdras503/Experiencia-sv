@@ -15,6 +15,8 @@ const MAX_SESSION_ID_LENGTH = 80
 const MAX_ITINERARY_TOKEN_LENGTH = 24000
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{8,80}$/
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 // Los mensajes de chat sí admiten saltos de línea y tabulaciones. El resto de
 // caracteres de control se rechaza para evitar contenido malformado.
@@ -94,6 +96,20 @@ function validateSessionId(value) {
   return trimmed
 }
 
+function validateRequestId(value) {
+  if (value === undefined || value === null || value === '') return null
+  if (typeof value !== 'string') {
+    throw invalidRequest('El identificador de la consulta no es válido.')
+  }
+
+  const trimmed = value.trim()
+  if (!UUID_PATTERN.test(trimmed)) {
+    throw invalidRequest('El identificador de la consulta no es válido.')
+  }
+
+  return trimmed.toLowerCase()
+}
+
 function validateItineraryToken(value) {
   if (value === undefined || value === null || value === '') return null
   if (typeof value !== 'string') {
@@ -124,5 +140,6 @@ export function validateChatRequest(input) {
     history: validateHistory(raw.history),
     sessionId: validateSessionId(raw.sessionId),
     itineraryToken: validateItineraryToken(raw.itineraryToken),
+    requestId: validateRequestId(raw.requestId),
   }
 }

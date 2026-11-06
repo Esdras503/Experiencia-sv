@@ -5,6 +5,8 @@ const STATIC_ROUTES = {
   '/cuenta/recuperar': { name: 'forgot-password' },
   '/cuenta/restablecer': { name: 'reset-password' },
   '/itinerarios': { name: 'itineraries' },
+  '/planes': { name: 'plans' },
+  '/planes/contratar': { name: 'checkout' },
 }
 
 function decodeSegment(value) {

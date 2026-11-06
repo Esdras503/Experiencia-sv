@@ -34,6 +34,17 @@ test('acepta saltos de línea y recorta los extremos', () => {
   assert.deepEqual(result.history, [])
   assert.equal(result.sessionId, null)
   assert.equal(result.itineraryToken, null)
+  assert.equal(result.requestId, null)
+})
+
+test('acepta un requestId UUID y rechaza identificadores inválidos', () => {
+  const requestId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  const result = validateChatRequest({ message: 'hola', requestId })
+  assert.equal(result.requestId, requestId)
+
+  expectInvalid({ message: 'hola', requestId: '123' })
+  expectInvalid({ message: 'hola', requestId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa' })
+  expectInvalid({ message: 'hola', requestId: 42 })
 })
 
 test('el historial se limita a los mensajes y caracteres recientes', () => {

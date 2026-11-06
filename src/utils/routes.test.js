@@ -46,6 +46,13 @@ test('reconoce la lista y el detalle de itinerarios', () => {
   })
 })
 
+test('reconoce los planes y el flujo de contratación', () => {
+  assert.deepEqual(parseRoute('/planes'), { name: 'plans' })
+  assert.deepEqual(parseRoute('/planes/'), { name: 'plans' })
+  assert.deepEqual(parseRoute('/planes/contratar'), { name: 'checkout' })
+  assert.deepEqual(parseRoute('/planes/contratar/'), { name: 'checkout' })
+})
+
 test('marca como no encontrada cualquier otra ruta', () => {
   assert.deepEqual(parseRoute('/ruta-inexistente'), { name: 'not-found' })
   assert.deepEqual(parseRoute('/lugares/a/b'), { name: 'not-found' })

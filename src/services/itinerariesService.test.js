@@ -158,6 +158,13 @@ test('clasifica errores de RLS, sesión, validación y red', () => {
   )
   assert.equal(describeDatabaseError({ status: 401 }).code, 'SESSION_EXPIRED')
   assert.equal(describeDatabaseError({ code: '23514' }).code, 'VALIDATION_ERROR')
+  const limit = describeDatabaseError({
+    code: 'P0001',
+    message: 'PLAN_LIMIT_ITINERARIES:2',
+  })
+  assert.equal(limit.code, 'PLAN_LIMIT_ITINERARIES')
+  assert.match(limit.message, /hasta 2 itinerarios/)
+  assert.match(limit.message, /planes disponibles/)
   assert.equal(
     describeDatabaseError({ message: 'TypeError: Failed to fetch' }).code,
     'NETWORK_ERROR',

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { CHAT_INITIAL_SUGGESTIONS, MAX_CHAT_MESSAGE_LENGTH } from '../../../shared/chat.js'
 import { useAuth } from '../../context/authContext.js'
+import { usePlanStatus } from '../../context/planContext.js'
 import { createItinerary } from '../../services/itinerariesService.js'
 import { createItineraryInsert } from '../../services/itineraryPayload.js'
 import { sendChatMessage } from '../../services/chatService'
@@ -23,6 +24,31 @@ function createSessionId() {
   }
 }
 
+function createRequestId() {
+  try {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+    const bytes = new Uint8Array(16)
+    globalThis.crypto?.getRandomValues?.(bytes)
+    for (let index = 0; index < bytes.length; index += 1) {
+      if (!globalThis.crypto?.getRandomValues) {
+        bytes[index] = Math.floor(Math.random() * 256)
+      }
+    }
+    bytes[6] = (bytes[6] & 0x0f) | 0x40
+    bytes[8] = (bytes[8] & 0x3f) | 0x80
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+  } catch {
+    const hex = Array.from({ length: 32 }, () =>
+      Math.floor(Math.random() * 16).toString(16),
+    )
+    hex[12] = '4'
+    hex[16] = '8'
+    const value = hex.join('')
+    return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`
+  }
+}
+
 export default function ChatWidget({ open, onOpen, onClose, navigate }) {
   const [messages, setMessages] = useState([WELCOME_MESSAGE])
   const [message, setMessage] = useState('')
@@ -37,7 +63,17 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
   const [saveError, setSaveError] = useState(null)
   const [savedItineraryId, setSavedItineraryId] = useState(null)
 
-  const { user, configured: accountsConfigured } = useAuth()
+  const { user, session, configured: accountsConfigured } = useAuth()
+  const {
+    applyChatUsage,
+    plan,
+    usage,
+    billingEnabled,
+    canSaveItineraries,
+    refresh: refreshPlan,
+  } = usePlanStatus()
+
+  const saveLimitReached = Boolean(user && canSaveItineraries === false)
 
   const nextMessageId = useRef(1)
   const requestRef = useRef(null)
@@ -76,7 +112,7 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
     [],
   )
 
-  async function runRequest({ text, history }) {
+  async function runRequest({ text, history, requestId }) {
     requestRef.current?.abort()
 
     const controller = new AbortController()
@@ -94,11 +130,17 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
           sessionId,
           history,
           itineraryToken,
+          requestId,
         },
-        { signal: controller.signal },
+        {
+          signal: controller.signal,
+          accessToken: session?.access_token ?? null,
+        },
       )
 
       if (sequence !== requestSeq.current) return
+
+      applyChatUsage(payload)
 
       setMessages((current) => [
         ...current,
@@ -138,6 +180,7 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
         message:
           requestError?.message ??
           'No se pudo obtener respuesta del asistente. Intenta de nuevo.',
+        details: requestError?.details ?? null,
       })
     } finally {
       if (sequence === requestSeq.current) {
@@ -168,6 +211,7 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
 
     const history = buildHistory(messages)
     const userMessageId = `user-${nextMessageId.current++}`
+    const requestId = createRequestId()
 
     setMessages((current) => [
       ...current,
@@ -175,13 +219,17 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
     ])
     setMessage('')
     setSuggestions([])
-    setPending({ text: trimmedMessage, history, userMessageId })
-    runRequest({ text: trimmedMessage, history })
+    setPending({ text: trimmedMessage, history, userMessageId, requestId })
+    runRequest({ text: trimmedMessage, history, requestId })
   }
 
   const handleRetry = () => {
     if (!pending || status === 'loading') return
-    runRequest({ text: pending.text, history: pending.history })
+    runRequest({
+      text: pending.text,
+      history: pending.history,
+      requestId: pending.requestId ?? createRequestId(),
+    })
   }
 
   const handleCancel = () => {
@@ -264,6 +312,14 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
       return
     }
 
+    if (saveLimitReached) {
+      setSaveStatus('error')
+      setSaveError(
+        `Tu plan ${plan?.name ?? 'actual'} alcanzó el límite de itinerarios guardados. Elimina uno o consulta los planes disponibles.`,
+      )
+      return
+    }
+
     setSaveStatus('saving')
     setSaveError(null)
 
@@ -272,12 +328,14 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
       const saved = await createItinerary(user.id, record)
       setSavedItineraryId(saved.id)
       setSaveStatus('success')
+      refreshPlan()
     } catch (saveItineraryError) {
       setSaveStatus('error')
       setSaveError(
         saveItineraryError?.message ??
           'No se pudo guardar el itinerario. El plan sigue en pantalla; intenta de nuevo.',
       )
+      refreshPlan()
     }
   }
 
@@ -298,6 +356,12 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
     const nextPath = `${window.location.pathname}${window.location.search}`
     onClose()
     navigate?.(buildLoginHref(nextPath))
+  }
+
+  const handleOpenPlans = () => {
+    requestRef.current?.abort()
+    onClose()
+    navigate?.('/planes')
   }
 
   const handleClose = () => {
@@ -365,6 +429,11 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
           savedItineraryId={savedItineraryId}
           isAuthenticated={Boolean(user)}
           accountsConfigured={accountsConfigured}
+          plan={plan}
+          usage={usage}
+          billingEnabled={billingEnabled}
+          saveLimitReached={saveLimitReached}
+          onOpenPlans={handleOpenPlans}
           closeButtonRef={closeButtonRef}
           inputRef={inputRef}
           messagesRef={messagesRef}

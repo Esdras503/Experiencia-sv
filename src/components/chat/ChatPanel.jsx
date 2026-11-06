@@ -35,6 +35,11 @@ const ChatPanel = forwardRef(function ChatPanel(
     savedItineraryId,
     isAuthenticated,
     accountsConfigured,
+    plan,
+    usage,
+    billingEnabled,
+    saveLimitReached,
+    onOpenPlans,
     closeButtonRef,
     inputRef,
     messagesRef,
@@ -57,6 +62,8 @@ const ChatPanel = forwardRef(function ChatPanel(
       event.currentTarget.form?.requestSubmit()
     }
   }
+
+  const quotaReached = error?.code === 'AI_QUOTA_EXCEEDED'
 
   return (
     <aside
@@ -99,6 +106,24 @@ const ChatPanel = forwardRef(function ChatPanel(
           </button>
         </div>
       </div>
+
+      {billingEnabled && usage && (
+        <div
+          className={`chat-plan-bar${usage.remaining <= 0 ? ' is-exhausted' : ''}`}
+          aria-live="polite"
+        >
+          <span>
+            <strong>{plan?.name ?? 'Explorador'}</strong>
+            <span>
+              {usage.used} de {usage.limit} consultas de IA
+              {usage.remaining <= 0 ? ' · límite alcanzado' : ''}
+            </span>
+          </span>
+          <button type="button" onClick={onOpenPlans}>
+            Ver planes
+          </button>
+        </div>
+      )}
 
       <div className="chat-body" ref={messagesRef}>
         <div className="chat-messages" role="log" aria-live="polite">
@@ -156,6 +181,8 @@ const ChatPanel = forwardRef(function ChatPanel(
             savedItineraryId={savedItineraryId}
             isAuthenticated={isAuthenticated}
             accountsConfigured={accountsConfigured}
+            saveLimitReached={saveLimitReached}
+            onOpenPlans={onOpenPlans}
           />
         )}
 
@@ -170,10 +197,16 @@ const ChatPanel = forwardRef(function ChatPanel(
                 : error?.message ?? 'No se pudo obtener respuesta del asistente.'}
             </p>
             <div className="chat-error-actions">
-              {canRetry && (
-                <button type="button" onClick={onRetry}>
-                  Reintentar
+              {quotaReached ? (
+                <button type="button" onClick={onOpenPlans}>
+                  Ver planes
                 </button>
+              ) : (
+                canRetry && (
+                  <button type="button" onClick={onRetry}>
+                    Reintentar
+                  </button>
+                )
               )}
               <button type="button" className="chat-dismiss" onClick={onDismissError}>
                 {canRetry ? 'Descartar' : 'Cerrar'}

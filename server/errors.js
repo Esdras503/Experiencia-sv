@@ -17,6 +17,13 @@ export const ERROR_CODES = {
   AI_TIMEOUT: 'AI_TIMEOUT',
   AI_BAD_RESPONSE: 'AI_BAD_RESPONSE',
   CHAT_BUSY: 'CHAT_BUSY',
+  AI_QUOTA_EXCEEDED: 'AI_QUOTA_EXCEEDED',
+  AI_REQUEST_REPLAYED: 'AI_REQUEST_REPLAYED',
+  AI_REQUEST_IN_PROGRESS: 'AI_REQUEST_IN_PROGRESS',
+  SESSION_EXPIRED: 'SESSION_EXPIRED',
+  BILLING_NOT_CONFIGURED: 'BILLING_NOT_CONFIGURED',
+  BILLING_UNAVAILABLE: 'BILLING_UNAVAILABLE',
+  PAYMENTS_NOT_CONFIGURED: 'PAYMENTS_NOT_CONFIGURED',
   INTERNAL: 'INTERNAL',
 }
 
@@ -52,15 +59,31 @@ const PUBLIC_MESSAGES = {
     'El asistente no devolvió una respuesta válida. Intenta reformular tu mensaje.',
   [ERROR_CODES.CHAT_BUSY]:
     'El asistente está atendiendo otras conversaciones. Intenta de nuevo en unos segundos.',
+  [ERROR_CODES.AI_QUOTA_EXCEEDED]:
+    'Alcanzaste el límite de consultas de IA de tu plan. Puedes consultar los planes disponibles.',
+  [ERROR_CODES.AI_REQUEST_REPLAYED]:
+    'Esta consulta ya fue procesada. Escribe un mensaje nuevo para continuar.',
+  [ERROR_CODES.AI_REQUEST_IN_PROGRESS]:
+    'Esta consulta todavía se está procesando. Espera un momento antes de reintentarla.',
+  [ERROR_CODES.SESSION_EXPIRED]:
+    'Tu sesión expiró. Inicia sesión de nuevo para continuar.',
+  [ERROR_CODES.BILLING_NOT_CONFIGURED]:
+    'Los planes todavía no están configurados en este entorno.',
+  [ERROR_CODES.BILLING_UNAVAILABLE]:
+    'No pudimos verificar tu plan en este momento. Intenta de nuevo en unos segundos.',
+  [ERROR_CODES.PAYMENTS_NOT_CONFIGURED]:
+    'El pago aún no está habilitado. No se ha realizado ningún cobro ni se ha activado ningún plan.',
   [ERROR_CODES.INTERNAL]: 'Ocurrió un error inesperado en el servidor.',
 }
 
 export class AppError extends Error {
-  constructor(code, { status = 500, message } = {}) {
+  constructor(code, { status = 500, message, details, headers } = {}) {
     super(message ?? PUBLIC_MESSAGES[code] ?? PUBLIC_MESSAGES[ERROR_CODES.INTERNAL])
     this.name = 'AppError'
     this.code = code
     this.status = status
+    this.details = details
+    this.headers = headers
   }
 }
 

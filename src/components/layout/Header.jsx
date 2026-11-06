@@ -86,6 +86,16 @@ export default function Header({ pathname, onNavigateSection, onNavigateHome }) 
             {section.label}
           </a>
         ))}
+        <a
+          href="/planes"
+          aria-current={
+            pathname === '/planes' || pathname.startsWith('/planes/')
+              ? 'page'
+              : undefined
+          }
+        >
+          Planes
+        </a>
       </nav>
 
       <div className="header-actions">

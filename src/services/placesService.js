@@ -2,11 +2,12 @@ const NETWORK_ERROR_MESSAGE =
   'No se pudo contactar al servicio de búsqueda. Revisa tu conexión e intenta de nuevo.'
 
 export class ApiError extends Error {
-  constructor(code, message, status = 0) {
+  constructor(code, message, status = 0, details = null) {
     super(message)
     this.name = 'ApiError'
     this.code = code
     this.status = status
+    this.details = details
   }
 }
 

@@ -1,5 +1,7 @@
+import { randomUUID } from 'node:crypto'
 import { getCategoryByKey, ALL_CATEGORIES_KEY } from '../shared/categories.js'
 import { MAX_CHAT_MESSAGE_LENGTH } from '../shared/chat.js'
+import { getPlan } from '../shared/plans.js'
 import {
   OSM_ATTRIBUTION,
   OSM_COPYRIGHT_URL,
@@ -29,6 +31,7 @@ import { createAiClient } from './aiClient.js'
 import { validateChatRequest } from './chatValidation.js'
 import { createChatService } from './chatService.js'
 import { resolveItinerarySigningSecret } from './chatItinerary.js'
+import { createBillingService } from './billing/billingService.js'
 
 const LANGUAGE_CODE = 'es'
 const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000
@@ -37,21 +40,56 @@ const MIN_TEXT_QUERY_LENGTH = 2
 export const RANKING_NOTICE =
   'Los resultados provienen de OpenStreetMap. La búsqueda por texto usa la relevancia de Nominatim; las búsquedas por categoría se ordenan por distancia cuando eliges una referencia. OpenStreetMap no incluye calificaciones ni reseñas.'
 
-function jsonResponse(status, payload) {
+function jsonResponse(status, payload, extraHeaders = {}) {
   return {
     status,
     json: payload,
-    headers: { 'Cache-Control': 'no-store' },
+    headers: { 'Cache-Control': 'no-store', ...extraHeaders },
   }
 }
 
 function errorResponse(error) {
   const appError = error instanceof AppError ? error : new AppError(ERROR_CODES.INTERNAL)
-  return jsonResponse(appError.status, {
-    // Los mensajes de AppError son propios y seguros; nunca contienen
-    // texto del proveedor ni credenciales.
-    error: { code: appError.code, message: appError.message || publicMessageFor(appError.code) },
-  })
+  return jsonResponse(
+    appError.status,
+    {
+      // Los mensajes de AppError son propios y seguros; nunca contienen
+      // texto del proveedor ni credenciales.
+      error: {
+        code: appError.code,
+        message: appError.message || publicMessageFor(appError.code),
+        ...(appError.details ? { details: appError.details } : {}),
+      },
+    },
+    appError.headers,
+  )
+}
+
+function reservationError(reservation) {
+  if (reservation.reason === 'limit') {
+    return new AppError(ERROR_CODES.AI_QUOTA_EXCEEDED, {
+      status: 429,
+      details: {
+        planId: reservation.plan?.id ?? null,
+        planName: reservation.plan?.name ?? null,
+        used: reservation.usage?.used ?? null,
+        limit: reservation.usage?.limit ?? null,
+        remaining: 0,
+        periodEnd: reservation.usage?.periodEnd ?? null,
+        upgradeUrl: '/planes',
+      },
+    })
+  }
+
+  if (reservation.reason === 'replayed') {
+    return new AppError(ERROR_CODES.AI_REQUEST_REPLAYED, { status: 409 })
+  }
+
+  if (reservation.reason === 'in_progress') {
+    return new AppError(ERROR_CODES.AI_REQUEST_IN_PROGRESS, { status: 409 })
+  }
+
+  return new AppError(ERROR_CODES.BILLING_UNAVAILABLE, { status: 503 })
 }
 
 function checkOrigin({ headers, env }) {
@@ -146,6 +184,7 @@ export function createRequestHandler({
   logError = console.error,
   osmClient,
   aiClient,
+  billingService,
 } = {}) {
   const searchLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now })
   const generalLimiter = createRateLimiter({ limit: 60, windowMs: 60_000, now })
@@ -356,6 +395,14 @@ export function createRequestHandler({
     logError,
   })
 
+  const resolvedBillingService =
+    billingService ??
+    createBillingService({
+      env,
+      fetchImpl,
+      logError,
+    })
+
   async function handleSearch({ body, ip, headers }) {
     enforceRateLimit(searchLimiter, ip, 'search')
     checkOrigin({ headers, env })
@@ -399,23 +446,123 @@ export function createRequestHandler({
       }
     }
 
+    // No se reserva cupo ni se crea una identidad anónima si el proveedor de IA
+    // no está configurado. Así un fallo de configuración no consume consultas.
+    if (!chatService.enabled) {
+      throw new AppError(ERROR_CODES.AI_NOT_CONFIGURED, { status: 503 })
+    }
+
     const release = chatConcurrency.tryAcquire()
     if (!release) {
       safeLog(logError, 'chat ocupado', { code: 'CHAT_BUSY' })
       throw new AppError(ERROR_CODES.CHAT_BUSY, { status: 429 })
     }
 
+    const requestId = input.requestId ?? randomUUID()
+    let reservation = null
+
     try {
+      if (resolvedBillingService.enabled) {
+        const context = await resolvedBillingService.resolveContext({ headers, ip })
+        reservation = await resolvedBillingService.reserveChat({
+          context,
+          requestId,
+        })
+
+        if (!reservation.allowed) {
+          throw reservationError(reservation)
+        }
+      }
+
       const payload = await chatService.handleChat({
         message: input.message,
         history: input.history,
         itineraryToken: input.itineraryToken,
         signal,
       })
-      return jsonResponse(200, payload)
+
+      if (reservation) {
+        try {
+          const committed = await resolvedBillingService.commitChat(requestId)
+          if (!committed) {
+            safeLog(logError, 'no se pudo confirmar el consumo de IA', {
+              code: 'BILLING_COMMIT_FAILED',
+            })
+          }
+        } catch (commitError) {
+          safeLog(logError, 'confirmación de consumo de IA', commitError)
+        }
+      }
+
+      return jsonResponse(
+        200,
+        {
+          ...payload,
+          ...(reservation
+            ? { usage: reservation.usage, plan: reservation.plan, requestId }
+            : {}),
+        },
+        reservation?.setCookie
+          ? { 'Set-Cookie': reservation.setCookie }
+          : undefined,
+      )
+    } catch (error) {
+      // Si la IA no llegó a responder, la reserva se devuelve para que un fallo
+      // del proveedor no gaste una consulta. Un límite alcanzado o una petición
+      // repetida no tienen una reserva nueva que devolver.
+      if (reservation?.allowed) {
+        try {
+          const released = await resolvedBillingService.releaseChat(requestId)
+          if (!released) {
+            safeLog(logError, 'no se pudo liberar el consumo de IA', {
+              code: 'BILLING_RELEASE_FAILED',
+            })
+          }
+        } catch (releaseError) {
+          safeLog(logError, 'liberación de consumo de IA', releaseError)
+        }
+      }
+
+      if (error instanceof AppError && reservation?.setCookie) {
+        error.headers = {
+          ...(error.headers ?? {}),
+          'Set-Cookie': reservation.setCookie,
+        }
+      }
+
+      throw error
     } finally {
       release()
     }
+  }
+
+  async function handleBillingStatus({ headers }) {
+    const result = await resolvedBillingService.getStatus({ headers })
+    return jsonResponse(
+      200,
+      result.status,
+      result.setCookie ? { 'Set-Cookie': result.setCookie } : undefined,
+    )
+  }
+
+  async function handleBillingCheckout({ body }) {
+    const planId = typeof body?.planId === 'string' ? body.planId.trim() : ''
+    const plan = getPlan(planId)
+
+    if (!plan || plan.billingType === 'free') {
+      throw new AppError(ERROR_CODES.INVALID_REQUEST, {
+        status: 400,
+        message: 'El plan solicitado no existe o no requiere pago.',
+      })
+    }
+
+    if (!resolvedBillingService.paymentsEnabled) {
+      throw new AppError(ERROR_CODES.PAYMENTS_NOT_CONFIGURED, { status: 503 })
+    }
+
+    // La pasarela real se conectará aquí. Hasta entonces no se crea ninguna
+    // suscripción, pase ni pago pendiente desde el navegador.
+    throw new AppError(ERROR_CODES.PAYMENTS_NOT_CONFIGURED, { status: 503 })
   }
 
   function handleConfig() {
@@ -445,6 +592,11 @@ export function createRequestHandler({
         model: chatService.enabled ? chatService.model : null,
         dataSource: 'OpenStreetMap',
         maxMessageLength: MAX_CHAT_MESSAGE_LENGTH,
+      },
+      billing: {
+        enabled: resolvedBillingService.enabled,
+        paymentsEnabled: resolvedBillingService.paymentsEnabled,
+        plansUrl: '/planes',
       },
     })
   }
@@ -492,6 +644,20 @@ export function createRequestHandler({
           throw new AppError(ERROR_CODES.METHOD_NOT_ALLOWED, { status: 405 })
         }
         return await handleChat({ body, ip, headers, signal })
+      }
+
+      if (pathname === '/api/billing/status') {
+        if (method !== 'GET') {
+          throw new AppError(ERROR_CODES.METHOD_NOT_ALLOWED, { status: 405 })
+        }
+        return await handleBillingStatus({ headers, ip })
+      }
+
+      if (pathname === '/api/billing/checkout') {
+        if (method !== 'POST') {
+          throw new AppError(ERROR_CODES.METHOD_NOT_ALLOWED, { status: 405 })
+        }
+        return await handleBillingCheckout({ body, headers })
       }
 
       throw new AppError(ERROR_CODES.NOT_FOUND, { status: 404 })

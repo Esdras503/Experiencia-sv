@@ -41,6 +41,16 @@ export function describeDatabaseError(error) {
   const code = typeof error?.code === 'string' ? error.code : ''
   const message = typeof error?.message === 'string' ? error.message.toLowerCase() : ''
   const status = Number(error?.status)
+  const limitMatch = /plan_limit_itineraries:(\d+)/i.exec(message)
+
+  if (code === 'P0001' || limitMatch) {
+    const limit = limitMatch ? limitMatch[1] : '2'
+    return new ItineraryDataError(
+      'PLAN_LIMIT_ITINERARIES',
+      `Tu plan permite hasta ${limit} itinerarios guardados. Elimina uno o consulta los planes disponibles para guardar más.`,
+      status,
+    )
+  }
 
   if (
     code === '42501' ||

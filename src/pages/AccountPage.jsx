@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/authContext.js'
+import { usePlanStatus } from '../context/planContext.js'
 import { getOrCreateProfile, updateProfile } from '../services/profileService.js'
 import { validateDisplayName } from '../utils/authValidation.js'
 import AuthMessage from '../components/auth/AuthMessage.jsx'
@@ -19,6 +20,17 @@ function formatDate(value) {
 
 export default function AccountPage({ navigate }) {
   const { user, signOut } = useAuth()
+  const {
+    plan,
+    usage,
+    billingEnabled,
+    savedItineraries,
+    canSaveItineraries,
+    subscription,
+    pass,
+    status: planStatus,
+    refresh: refreshPlan,
+  } = usePlanStatus()
   const [profile, setProfile] = useState(null)
   const [status, setStatus] = useState('loading')
   const [loadError, setLoadError] = useState(null)
@@ -96,6 +108,12 @@ export default function AccountPage({ navigate }) {
 
   if (!user) return null
 
+  const usagePercent = usage
+    ? Math.min(100, Math.round((usage.used / Math.max(usage.limit, 1)) * 100))
+    : 0
+  const planPeriodEnd = formatDate(usage?.periodEnd)
+  const planExpiry = formatDate(pass?.expiresAt ?? subscription?.currentPeriodEnd)
+
   return (
     <section className="account-page" aria-labelledby="account-title">
       <nav className="account-breadcrumbs" aria-label="Ruta de navegación">
@@ -169,6 +187,82 @@ export default function AccountPage({ navigate }) {
           </form>
 
           <aside className="account-side">
+            <div className="account-card plan-summary-card">
+              <div className="plan-summary-heading">
+                <h2>Tu plan</h2>
+                <span className="plan-current-pill">{plan.name}</span>
+              </div>
+
+              {billingEnabled && usage ? (
+                <>
+                  <p className="plan-summary-usage">
+                    <strong>
+                      {usage.used} de {usage.limit}
+                    </strong>{' '}
+                    consultas de IA usadas
+                  </p>
+                  <div
+                    className="plan-usage-meter"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={usage.limit}
+                    aria-valuenow={usage.used}
+                    aria-label={`${usage.used} de ${usage.limit} consultas utilizadas`}
+                  >
+                    <span style={{ width: `${usagePercent}%` }} />
+                  </div>
+                  <dl className="account-details plan-summary-details">
+                    <div>
+                      <dt>Consultas restantes</dt>
+                      <dd>{usage.remaining}</dd>
+                    </div>
+                    <div>
+                      <dt>Se renueva</dt>
+                      <dd>{planPeriodEnd ?? 'No disponible'}</dd>
+                    </div>
+                    <div>
+                      <dt>Itinerarios guardados</dt>
+                      <dd>
+                        {savedItineraries ?? 0}
+                        {plan.savedItineraryLimit
+                          ? ` de ${plan.savedItineraryLimit}`
+                          : ''}
+                      </dd>
+                    </div>
+                    {planExpiry && (
+                      <div>
+                        <dt>Vigencia</dt>
+                        <dd>Hasta el {planExpiry}</dd>
+                      </div>
+                    )}
+                  </dl>
+                  {!canSaveItineraries && (
+                    <p className="plan-summary-warning" role="status">
+                      Alcanzaste el máximo de itinerarios guardados de este plan.
+                      Elimina uno o consulta las opciones disponibles.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p>
+                  {planStatus === 'loading'
+                    ? 'Consultando tu plan y consumo…'
+                    : 'Los límites de plan no están activos en este entorno. El plan Explorador sigue disponible.'}
+                </p>
+              )}
+
+              <div className="plan-summary-actions">
+                <a className="button-secondary" href="/planes">
+                  {plan.billingType === 'free' ? 'Comparar planes' : 'Ver planes'}
+                </a>
+                {planStatus === 'error' && (
+                  <button type="button" className="plan-summary-retry" onClick={refreshPlan}>
+                    Reintentar
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="account-card">
               <h2>Tu cuenta</h2>
               <dl className="account-details">

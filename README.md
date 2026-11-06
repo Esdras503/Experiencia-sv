@@ -5,6 +5,10 @@ OpenStreetMap** y un **asistente conversacional con IA opcional**. No usa Google
 Maps Platform: no hay claves de Google, no hay facturación de Google y no se
 piden tarjetas.
 
+**Manual de usuario:** [MANUAL_DE_USUARIO.md](MANUAL_DE_USUARIO.md). Explica el
+uso de la búsqueda, el asistente, la cuenta, la confirmación de correo y la
+gestión de itinerarios sin entrar en detalles de despliegue.
+
 ## Estado por fases
 
 - **Fase 1:** identidad visual, navegación, chat de demostración y páginas base.
@@ -30,7 +34,7 @@ piden tarjetas.
   - mapa compacto del itinerario reutilizando Leaflet;
   - estados de carga, error, reintento, cancelación y conversación nueva;
   - clave de IA solo en el servidor y validación de todo lo que devuelve el modelo.
-- **Fase 5 (esta entrega):** cuentas e itinerarios guardados con Supabase:
+- **Fase 5:** cuentas e itinerarios guardados con Supabase:
   - registro, inicio y cierre de sesión con correo y contraseña;
   - confirmación de correo, recuperación y restablecimiento de contraseña;
   - sesión persistente con refresco automático y cierre por expiración;
@@ -42,7 +46,21 @@ piden tarjetas.
   - la exploración y la búsqueda siguen siendo públicas: la cuenta solo es
     necesaria para guardar o administrar itinerarios;
   - el navegador solo recibe la URL y la clave pública/anon de Supabase; la
-    `service_role` no se usa en ninguna parte de la aplicación.
+    `service_role` nunca sale del backend.
+- **Fase 6 (esta entrega):** planes y monetización preparada:
+  - `/planes` con Explorador ($0.00), Experiencia Pro ($7.99/mes),
+    Experiencia Élite ($14.99/mes) y el pase turístico ($3.99/7 días);
+  - límites de 2 itinerarios y 10 consultas de IA/mes para Explorador, 200/mes
+    para Pro, 600/mes para Élite y 50 consultas durante el pase;
+  - cuotas reservadas y confirmadas de forma atómica en PostgreSQL, con
+    idempotencia por `requestId` y liberación si la IA falla;
+  - RLS de solo lectura para suscripciones, pases y consumo del propietario;
+    las altas y activaciones solo pueden hacerlas el backend;
+  - cookie HttpOnly firmada para el cupo de visitantes sin cuenta;
+  - flujo `/planes/contratar` modular y **deshabilitado**: no hay pasarela, no
+    se simulan cobros y no se activan planes desde el navegador;
+  - tablas separadas para eventos de pago, reservas y comisiones, sin presentar
+    reservas ni ingresos que todavía no existen.
 
 No se muestran lugares de demostración: todo resultado proviene de
 OpenStreetMap en el momento de la consulta. **OpenStreetMap no ofrece fotos,
@@ -61,6 +79,10 @@ respuestas simuladas**.
 - Un proyecto de Supabase para cuentas e itinerarios guardados. También es
   opcional para la exploración pública; sin configuración, las rutas de cuenta
   muestran una página de configuración pendiente.
+- Para aplicar cupos de plan y mostrar consumo, el backend necesita
+  `SUPABASE_SERVICE_ROLE_KEY` y la migración de Fase 6 aplicada. Sin esa clave,
+  los planes siguen visibles pero la facturación queda desactivada y el chat no
+  consume cupo.
 - La CLI de Supabase permite aplicar migraciones al proyecto remoto; Docker
   Desktop solo es necesario para levantar Supabase y ejecutar las pruebas RLS en
   local. Ninguno de los dos hace falta para usar el proyecto remoto desde la
@@ -73,7 +95,8 @@ Navegador (React + Vite)
  ├─ /api/*  ──>  API propio (server/ en local, api/ en Vercel)
  │                 ├─ Nominatim   (texto, referencia y detalle)
  │                 ├─ Overpass    (categorías por etiquetas OSM)
- │                 └─ Proveedor de IA (solo si está configurado)
+ │                 ├─ Proveedor de IA (solo si está configurado)
+ │                 └─ Supabase Admin (service_role, solo cupos y pagos)
  ├─ Supabase Auth + Data API ──> PostgreSQL con RLS
  │                              (solo URL y clave pública/anon)
  └─ Leaflet ──>  teselas del proveedor configurado (por defecto OSM)
@@ -87,8 +110,10 @@ IA. La clave **nunca** se envía al navegador ni se registra en logs.
 Las cuentas y los itinerarios guardados sí se consultan directamente desde el
 navegador con `@supabase/supabase-js`, usando la URL del proyecto y la clave
 pública/anon. Esa clave está diseñada para ser pública y no omite RLS. La
-protección real vive en las políticas de la base de datos; la `service_role`,
-que sí omite RLS, no se usa ni se expone en esta aplicación.
+protección real vive en las políticas de la base de datos. La `service_role`,
+que sí omite RLS, se usa únicamente en `server/billing/` para aplicar cupos,
+leer el estado del plan y registrar pagos confirmados; nunca se expone al
+navegador.
 
 El chatbot no inventa lugares: el modelo puede pedir búsquedas y detalles a
 través de herramientas del servidor, y el servidor solo acepta identificadores
@@ -123,14 +148,24 @@ Para habilitar el chat, define también `AI_API_KEY` (y opcionalmente
    VITE_SUPABASE_ANON_KEY=tu-clave-publica
    ```
    No uses la `service_role` ni ninguna clave secreta en variables `VITE_*`.
-3. Aplica la migración versionada. Con la CLI:
+   Para las cuotas de plan, define además en el servidor (nunca en una variable
+   `VITE_*`):
+   ```dotenv
+   SUPABASE_SERVICE_ROLE_KEY=tu-clave-secreta-de-servidor
+   BILLING_ANONYMOUS_SECRET=un-secreto-aleatorio-de-32-caracteres
+   ```
+3. Aplica las migraciones versionadas en orden. Con la CLI:
    ```bash
    supabase link --project-ref <ref-del-proyecto>
    supabase db push
    ```
-   También puedes abrir `supabase/migrations/20261019000000_phase5_profiles_itineraries.sql`
-   en el **SQL Editor** y ejecutarlo una vez. La migración crea `profiles`,
-   `itineraries`, triggers, restricciones, índices, permisos mínimos y RLS.
+   También puedes ejecutar en el **SQL Editor**, una vez cada una:
+   `20261019000000_phase5_profiles_itineraries.sql` y
+   `20261026000000_phase6_plans_monetization.sql`. La Fase 5 crea `profiles` e
+   `itineraries`; la Fase 6 crea `plans`, `user_subscriptions`, `trip_passes`,
+   `usage_records`, `usage_events`, `payment_events`, `bookings` y
+   `booking_commissions`, con sus triggers, restricciones, índices, permisos y
+   RLS. La Fase 6 no activa cobros ni reservas: solo prepara el esquema.
 4. En **Authentication > URL Configuration**, define:
    - **Site URL:** `http://localhost:5173` en desarrollo y tu dominio real en
      producción.
@@ -210,6 +245,17 @@ muestran `Configuración pendiente`. No hay datos simulados de cuentas.
 | `VITE_SUPABASE_ANON_KEY` | Sí, para cuentas | Clave pública/anon o publishable. Es pública por diseño. |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | No | Alternativa si usas el nombre nuevo de Supabase y `VITE_SUPABASE_ANON_KEY` está vacía. |
 
+### Supabase del servidor y planes (Fase 6)
+
+| Variable | ¿Obligatoria? | Uso |
+| --- | --- | --- |
+| `SUPABASE_URL` | No | URL del proyecto para el backend. Si falta, usa `VITE_SUPABASE_URL`. |
+| `SUPABASE_ANON_KEY` | No | Clave pública para validar el token del usuario. Si falta, usa `VITE_SUPABASE_ANON_KEY`. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Sí, para cupos y planes | Clave **secreta** que omite RLS. Solo se usa en `server/billing/`; nunca en el navegador ni en una variable `VITE_*`. Sin ella, la facturación queda desactivada y no se aplican cupos. |
+| `BILLING_ENABLED` | No | `true` o `false`. Si se omite, se activa cuando están las tres credenciales de servidor. |
+| `BILLING_ANONYMOUS_SECRET` | Recomendada | Secreto de al menos 16 caracteres para firmar la cookie HttpOnly del cupo anónimo. Si falta, se deriva de `CHAT_SIGNING_SECRET` o de la clave de servidor. |
+| `PAYMENTS_PROVIDER` | No | Reservada para una pasarela futura. Actualmente no se usa: no hay cobros ni activaciones simuladas. |
+
 No existe ninguna variable `VITE_*` con secretos: la interfaz no maneja
 contraseñas, tokens privados, la clave de IA ni la `service_role`. Las variables
 `VITE_SUPABASE_*` son públicas y quedan incluidas en el bundle; la protección
@@ -221,7 +267,10 @@ proveedor y el modelo; nunca la clave ni la URL interna del proveedor.
 `VITE_*` se incorpora en tiempo de compilación: después de cambiarlas hay que
 reiniciar Vite en desarrollo y volver a desplegar en Vercel. Nunca pongas
 `SUPABASE_SERVICE_ROLE_KEY` en el frontend ni en una variable `VITE_*`; esa clave
-omite RLS y esta aplicación no la necesita.
+omite RLS. En esta aplicación se usa **solo** en el backend de facturación para
+leer el estado del plan, reservar/confirmar consultas y registrar pagos
+confirmados. El cliente sigue leyendo sus propios datos con la clave pública y
+RLS.
 
 ### Proveedores compatibles
 
@@ -435,6 +484,48 @@ no se actualiza automáticamente: hay que guardar de nuevo, lo que crea otra
 copia. En el editor, reordenar o cambiar paradas recalcula las distancias en
 línea recta y conserva los identificadores reales de OpenStreetMap.
 
+### Planes, cuotas y pago
+
+La página pública `/planes` muestra el catálogo y `/planes/contratar` explica el
+flujo de contratación. Los precios y límites se mantienen en
+`shared/plans.js` y en la semilla de `public.plans`:
+
+| Plan | Precio | Consultas de IA | Itinerarios guardados |
+| --- | --- | --- | --- |
+| Explorador | $0.00 | 10 al mes | 2 |
+| Experiencia Pro | $7.99/mes | 200 al mes | Sin límite del plan |
+| Experiencia Élite | $14.99/mes | 600 al mes | Sin límite del plan |
+| Pase turístico | $3.99/7 días | 50 durante el pase | Sin límite del plan |
+
+- **La pasarela de pago no está conectada.** Los botones de Pro, Élite y pase
+  abren `/planes/contratar`, pero el backend responde `PAYMENTS_NOT_CONFIGURED`
+  y no crea cobros, suscripciones ni pases. No se simula un pago exitoso.
+- **El pase no empieza al visitar la página.** Su vigencia de 7 días solo puede
+  empezar cuando un backend de confianza registra un pago confirmado. La
+  migración obliga a que `starts_at` y `expires_at` existan juntos y a que duren
+  exactamente 7 días.
+- **El cupo se aplica en PostgreSQL**, no en React. `reserve_ai_query` usa un
+  bloqueo por sujeto, comprueba el plan efectivo y registra un evento idempotente
+  por `requestId`; el backend solo confirma la consulta si la IA respondió y la
+  libera si hubo un fallo. Un intento con el mismo `requestId` ya consumido
+  devuelve `AI_REQUEST_REPLAYED` y no vuelve a llamar a la IA.
+- **El límite de 2 itinerarios de Explorador también vive en un trigger.** Una
+  llamada directa a Supabase con la clave pública no puede saltarse el límite.
+- **Visitantes sin cuenta** reciben una cookie HttpOnly firmada. El servidor
+  guarda solo un hash SHA-256 de esa identidad para contar consultas; no usa la
+  IP como identidad del cupo.
+- **La exportación a PDF usa el diálogo de impresión del navegador.** En la
+  interfaz se ofrece desde el detalle de un itinerario guardado a los planes de
+  pago; el navegador puede imprimir cualquier página, así que no es un control
+  de seguridad.
+- **Reservas y comisiones están separadas** en `bookings` y
+  `booking_commissions`. No hay integración de reservas activa y la aplicación
+  no presenta esas tablas como ingresos ni como disponibilidad real.
+
+La cookie anónima y los cupos requieren `SUPABASE_SERVICE_ROLE_KEY` y la
+migración de Fase 6 aplicada. Sin esa configuración, `/planes` sigue siendo
+visible y el chat no consume cupo: es el modo seguro por defecto.
+
 ### RLS y aislamiento
 
 Las políticas de `public.profiles` permiten leer, insertar y actualizar solo la
@@ -445,19 +536,30 @@ coincide con `auth.uid()`. `anon` no tiene privilegios sobre estas tablas y
 filtran por propietario como defensa adicional; un itinerario ajeno se muestra
 como no encontrado, sin revelar su contenido.
 
+En la Fase 6, `user_subscriptions`, `trip_passes` y `usage_records` solo tienen
+políticas de lectura del propietario; no hay políticas de escritura para
+`anon`/`authenticated` y los grants de escritura se reservan a `service_role`.
+`usage_events`, `payment_events`, `bookings` y `booking_commissions` no exponen
+escrituras al cliente. Las funciones de cupo (`reserve_ai_query`,
+`commit_ai_query`, `release_ai_query`, `billing_status` y
+`anonymous_billing_status`) están revocadas para `anon`/`authenticated`.
+
 La prueba SQL `supabase/tests/phase5_rls.sql` crea dos usuarios de prueba dentro
 de una transacción, comprueba lectura, escritura, borrado y suplantación entre
-ambos y termina con `ROLLBACK`. Está pensada para PostgreSQL local, no para
-producción.
+ambos y termina con `ROLLBACK`. La prueba `supabase/tests/phase6_plans_rls.sql`
+hace lo mismo con suscripciones, pases, consumo, límite de itinerarios y reservas
+idempotentes. Ambas están pensadas para PostgreSQL local, no para producción.
 
 ### Privacidad de la cuenta
 
 Supabase Auth almacena el correo y las credenciales de autenticación. La app
 guarda el nombre visible, el perfil y los itinerarios que la persona decide
 guardar. No se guardan conversaciones completas ni coordenadas GPS. Las
-consultas a Supabase se hacen desde el navegador con la clave pública; RLS
-limita cada fila al propietario. No se usa `service_role` para saltarse las
-políticas ni se envían contraseñas al API propio.
+consultas de cuentas e itinerarios se hacen desde el navegador con la clave
+pública; RLS limita cada fila al propietario. Para cupos y estado de plan, el
+backend usa `service_role` con funciones acotadas; el navegador nunca recibe esa
+clave ni se envían contraseñas al API propio. Los cupos anónimos usan una cookie
+HttpOnly firmada y un hash, no la IP ni coordenadas.
 
 ## Fuentes de datos y cumplimiento
 
@@ -510,7 +612,9 @@ itinerario del chat.
 | `POST /api/search` | `{ query?, category?, center?, radiusKm?, pageSize? }` | `{ places, center, radiusKm, source, dataSource, attribution, rankingNotice }`. |
 | `GET /api/place?id=...` | `id` con forma `osm-node-123`, `osm-way-456` o `osm-relation-789`. | `{ place, source, attribution }` con etiquetas reales de OSM. |
 | `POST /api/locate` | `{ query }` (mínimo 3 caracteres) | `{ location, label, address, source }`. |
-| `POST /api/chat` | `{ message, history?, sessionId?, itineraryToken? }` | `{ message, places, suggestions, itinerary, itineraryToken, meta }`. |
+| `POST /api/chat` | `{ message, history?, sessionId?, itineraryToken?, requestId? }`; el token de sesión va en `Authorization: Bearer` | `{ message, places, suggestions, itinerary, itineraryToken, meta }` y, si hay billing activo, `{ usage, plan, requestId }`. |
+| `GET /api/billing/status` | Token de sesión opcional en `Authorization: Bearer`; cookie anónima si no hay sesión. | `{ enabled, billingEnabled, paymentsEnabled, authenticated, plan, period, usage, savedItineraries, canSaveItineraries, subscription, pass }`. |
+| `POST /api/billing/checkout` | `{ planId }` y token de sesión opcional. | Mientras no exista pasarela: `503 PAYMENTS_NOT_CONFIGURED`, sin cobros ni activaciones. |
 
 Reglas de búsqueda:
 
@@ -620,7 +724,10 @@ aventura, gastronomía, etc.) y combinar varias búsquedas.
 - Los itinerarios solo se guardan si la persona pulsa «Guardar itinerario». No
   se guardan conversaciones completas ni el historial del chat.
 - Las filas guardadas viven en PostgreSQL con RLS y solo son accesibles para su
-  propietario. El navegador usa la clave pública; no se usa `service_role`.
+  propietario. El navegador usa la clave pública; la `service_role` solo existe
+  en el backend para aplicar cupos y registrar pagos confirmados.
+- Los contadores anónimos usan una cookie HttpOnly firmada y un hash SHA-256. No
+  se guarda la IP como identidad del cupo ni coordenadas del visitante.
 - Los correos de confirmación y recuperación los envía Supabase (con su SMTP
   integrado o el que configures). El proveedor de correo puede conservar datos
   según sus políticas.
@@ -644,6 +751,11 @@ aventura, gastronomía, etc.) y combinar varias búsquedas.
 | `AI_TIMEOUT` | El proveedor o el turno completo superaron el tiempo máximo. | Reintenta o acorta la petición. |
 | `AI_BAD_RESPONSE` | El modelo no devolvió el formato esperado. | Reintenta; si persiste, cambia de modelo. |
 | `CHAT_BUSY` | Se alcanzó la concurrencia máxima de la instancia. | Reintenta en unos segundos. |
+| `AI_QUOTA_EXCEEDED` | Se agotaron las consultas de IA del plan o del cupo anónimo. | Espera la renovación o consulta `/planes`; la búsqueda y el mapa siguen disponibles. |
+| `AI_REQUEST_REPLAYED` | El mismo `requestId` ya consumió una consulta. | Escribe un mensaje nuevo; no se vuelve a llamar a la IA. |
+| `AI_REQUEST_IN_PROGRESS` | El mismo `requestId` sigue reservado por otra ejecución. | Espera unos segundos antes de reintentar. |
+| `BILLING_UNAVAILABLE` | El backend no pudo leer o escribir el estado del plan. | Reintenta; revisa `SUPABASE_SERVICE_ROLE_KEY` y la migración. |
+| `PAYMENTS_NOT_CONFIGURED` | No hay pasarela conectada. | No se ha cobrado nada; consulta las condiciones y espera la habilitación. |
 | `INTERNAL` | Fallo inesperado del servidor. | Reintenta; revisa los registros. |
 
 Errores de cuenta e itinerarios (se muestran en español, sin detalles internos):
@@ -693,8 +805,16 @@ Cubre:
   rechazo de IDs inválidos;
 - validación y mapeo del itinerario del chat a la fila de PostgreSQL, límites,
   distancias y actualización de paradas;
-- comprobaciones estáticas de la migración: RLS activo, políticas del
+- comprobaciones estáticas de las migraciones: RLS activo, políticas del
   propietario, grants mínimos, trigger de perfil, restricciones e índices;
+- catálogo de planes, precios exactos, comparativa, rutas y llamadas a la acción;
+- cookie anónima firmada, hash del cupo y rechazo de cookies manipuladas;
+- reserva, confirmación y liberación de cuotas; límite antes de llamar a la IA;
+  idempotencia por `requestId`; fallo del proveedor sin gastar consulta;
+- endpoints `/api/billing/status` y `/api/billing/checkout`, incluido el modo
+  deshabilitado sin `service_role` y el rechazo de pagos simulados;
+- normalización del estado del plan, errores con `details` y protección contra
+  elusión desde el navegador;
 - prueba de seguridad del código fuente y del bundle para evitar secretos.
 
 Las pruebas **no** consultan servicios reales ni usan claves reales: son
@@ -762,33 +882,42 @@ de Supabase y un buzón temporal:
 
 ## Despliegue en Vercel
 
-1. Aplica la migración de la Fase 5 al proyecto de Supabase de producción
-   (`supabase db push` o SQL Editor) antes de abrir el registro.
+1. Aplica las migraciones de Fase 5 y Fase 6 al proyecto de Supabase de
+   producción (`supabase db push` o SQL Editor, en orden) antes de abrir el
+   registro y los cupos.
 2. Importa el repositorio en Vercel; el proyecto detecta Vite y las funciones
-   de `api/` automáticamente.
+   de `api/` automáticamente, incluidas `api/billing/status.js` y
+   `api/billing/checkout.js`.
 3. En Vercel, define `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` con los
    valores públicos del proyecto. Se incorporan al bundle en el build; si los
    cambias, vuelve a desplegar.
-4. Define `OSM_USER_AGENT` con un contacto real y, si aplica,
+4. En **Production** (y Preview si corresponde), define
+   `SUPABASE_SERVICE_ROLE_KEY` y `BILLING_ANONYMOUS_SECRET`. La primera es
+   secreta y solo debe existir en el backend. Sin ella, `/api/config` indicará
+   `billing.enabled:false` y el chat no consumirá cupo.
+5. Define `OSM_USER_AGENT` con un contacto real y, si aplica,
    `ALLOWED_ORIGIN`.
-5. Define `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`, `AI_PROVIDER_NAME` y un
+6. Define `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`, `AI_PROVIDER_NAME` y un
    `CHAT_SIGNING_SECRET` estable (mínimo 16 caracteres).
-6. No configures secretos con el prefijo `VITE_`: Vite los expondría al
-   navegador. La clave de IA y la `service_role` solo pueden vivir en un backend
-   de confianza; esta app no necesita la segunda.
-7. En Supabase, actualiza **Authentication > URL Configuration** con el dominio
+7. No configures secretos con el prefijo `VITE_`: Vite los expondría al
+   navegador. La clave de IA y la `service_role` solo pueden vivir en el backend.
+8. En Supabase, actualiza **Authentication > URL Configuration** con el dominio
    de producción como Site URL y añade las Redirect URLs exactas:
    `https://tu-dominio/cuenta/iniciar-sesion` y
    `https://tu-dominio/cuenta/restablecer`. Si usas previews de Vercel, añade
    también sus dominios o un patrón controlado; no dejes redirects abiertos.
-8. Configura un SMTP propio en Supabase si va a haber registro público. El
+9. Configura un SMTP propio en Supabase si va a haber registro público. El
    correo integrado tiene un límite muy bajo y puede devolver
    `over_email_send_rate_limit`.
-9. Verifica `GET /api/config` en el dominio desplegado: debe indicar
-   `chat.enabled: true` sin mostrar la clave, y prueba registro, confirmación,
-   login y guardado contra el proyecto real.
-10. Prueba un turno real del chat y confirma el costo/uso en el panel de tu
-    proveedor.
+10. Verifica `GET /api/config` en el dominio desplegado: debe indicar
+    `chat.enabled: true` y `billing.enabled: true` sin mostrar claves, y prueba
+    registro, confirmación, login, guardado y `/planes`.
+11. Prueba `GET /api/billing/status` con una sesión y sin sesión, y comprueba
+    que el consumo aumenta tras un turno real. Prueba un turno real del chat y
+    confirma el costo/uso en el panel de tu proveedor.
+12. La contratación seguirá devolviendo `PAYMENTS_NOT_CONFIGURED` hasta que se
+    conecte una pasarela real. No actives cobros sin webhooks firmados,
+    verificación de importes e idempotencia.
 
 Notas:
 
@@ -804,25 +933,62 @@ Notas:
   `localhost`; usa un proveedor accesible por HTTPS o un despliegue propio.
 - Los costos de IA dependen del proveedor, modelo, tokens de entrada/salida y
   volumen. No hay un costo máximo absoluto garantizado por esta aplicación.
+- Los cupos de plan no son un límite de gasto absoluto: reducen el número de
+  consultas, pero una consulta puede consumir muchos tokens. Configura alertas y
+  presupuesto en el panel del proveedor de IA.
+- `api/billing/*.js` y las rutas nuevas requieren un redeploy. Guardar variables
+  en Vercel no modifica un build ya publicado.
 - Si una búsqueda por categoría en todo el país tarda demasiado, el usuario
   puede acotarla con «Buscar cerca de mí» o una ciudad de referencia.
 - Para tráfico alto, cambia `OSM_TILE_URL` a un proveedor con SLA.
 
+### Si el chat o las cuentas siguen desactivados en Vercel
+
+- Si `GET /api/config` devuelve `chat.enabled: false`, falta `AI_API_KEY` en el
+  entorno **Production** o el despliegue actual se creó antes de añadirla. Las
+  variables de Vercel no modifican un build ya publicado: hay que volver a
+  desplegar. Comprueba también que no esté vacía y que no tenga el prefijo
+  `VITE_`.
+- Si `/cuenta/iniciar-sesion` muestra «Las cuentas todavía no están
+  configuradas», faltan `VITE_SUPABASE_URL` y/o `VITE_SUPABASE_ANON_KEY` en el
+  build. Añádelas al entorno Production (y Preview si corresponde), vuelve a
+  desplegar sin reutilizar la caché de build y recarga la página con una nueva
+  compilación. No basta con guardar las variables en el panel.
+- Si el chat responde 403 con `Origin not allowed`, revisa `ALLOWED_ORIGIN`: debe
+  ser exactamente el origen de producción, por ejemplo
+  `https://experiencia-sv-eight.vercel.app`, o quedar vacío.
+- Si `/planes` indica que los límites no están activos o
+  `GET /api/config` devuelve `billing.enabled:false`, faltan
+  `SUPABASE_SERVICE_ROLE_KEY` y/o `BILLING_ANONYMOUS_SECRET`, o la migración de
+  Fase 6 no se aplicó. El chat sigue funcionando, pero sin cupos. Redespliega
+  después de añadir las variables.
+- Si `/api/billing/status` devuelve 503 `BILLING_UNAVAILABLE`, revisa que las
+  funciones SQL de la Fase 6 existan y que `service_role` tenga permiso de
+  ejecutarlas. No uses la clave de servicio en el navegador para “probar”.
+- Si el login falla con `Invalid API key`: la clave pública copiada no pertenece
+  al proyecto de la URL. Si falla con `Email not confirmed`, confirma la cuenta o
+  revisa el SMTP/redirects de Supabase. La sesión de `localhost` no se comparte
+  con el dominio de Vercel: hay que iniciar sesión de nuevo en producción.
+
 ## Estructura del proyecto
 
 ```
-api/               funciones serverless de Vercel (config, search, place, locate, chat)
+api/               funciones serverless de Vercel (config, search, place, locate,
+                   chat y billing)
 server/            API: handlers, validación, errores, límites, caché,
                    cliente de Nominatim/Overpass, cliente de IA, herramientas,
-                   validación del chat, prompt e itinerarios firmados
-shared/            categorías, etiquetas OSM y límites/sugerencias del chat
-supabase/          config.toml local, migraciones versionadas y prueba SQL de RLS
+                   validación del chat, prompt, itinerarios firmados y billing
+  billing/         cookie anónima, servicio de planes y pasarela deshabilitada
+shared/            categorías, etiquetas OSM, chat y catálogo de planes
+supabase/          config.toml local, migraciones versionadas y pruebas SQL de
+                   RLS de Fase 5 y Fase 6
 src/               interfaz React: páginas, componentes, hooks y servicios
   components/auth/        layouts, mensajes y protección de rutas
   components/chat/        botón, panel, tarjetas de lugares e itinerario
   components/itineraries/ tarjetas, vista y editor de paradas
-  context/                sesión de Supabase Auth
-  services/               cliente público, Auth, perfiles, itinerarios y chat
+  context/                sesión de Supabase Auth y estado del plan
+  pages/                  inicio, lugares, cuenta, planes y contratación
+  services/               cliente público, Auth, perfiles, itinerarios, chat y planes
   utils/                  validaciones, rutas y redirecciones seguras
 public/            archivos estáticos
 ```
@@ -843,6 +1009,13 @@ public/            archivos estáticos
   mapa de resultados, detalle o itinerario); la atribución permanece visible.
 - Diseño responsivo conservado de fases anteriores, incluido el mapa compacto
   del itinerario.
+- `/planes` mantiene el plan gratuito visible, destaca Pro sin ocultarlo,
+  identifica el plan actual, usa encabezados de tabla, `caption` y una
+  comparativa desplazable en pantallas pequeñas.
+- Los botones deshabilitados de pago explican que no hay cobro y la barra de
+  consumo del chat anuncia cambios con `aria-live`.
+- La exportación a PDF usa el diálogo de impresión y oculta navegación, chat y
+  botones para que el itinerario guardado se imprima limpio.
 
 ## Limitaciones conocidas y pendientes
 
@@ -869,6 +1042,20 @@ public/            archivos estáticos
 - **La IA puede equivocarse**: el servidor filtra IDs y valida el itinerario,
   pero el texto libre del asistente puede contener imprecisiones. Los avisos de
   la interfaz recuerdan confirmar horarios, precios, disponibilidad y condiciones.
+- **Sin pasarela de pago**: `/planes/contratar` está preparado, pero no hay
+  cobros, activaciones de Pro/Élite ni pases reales. Toda compra devuelve
+  `PAYMENTS_NOT_CONFIGURED`. Tampoco hay webhooks de pago firmados ni conciliación
+  de importes todavía.
+- **Cupos condicionados a configuración**: sin `SUPABASE_SERVICE_ROLE_KEY` y la
+  migración de Fase 6, `/planes` es informativa y el chat no consume cupo. La
+  migración no se aplicó al proyecto remoto en esta sesión; las pruebas SQL de
+  Fase 5 y Fase 6 siguen pendientes de ejecutarse contra PostgreSQL local.
+- **Reservas y comisiones no disponibles**: las tablas `bookings` y
+  `booking_commissions` solo preparan el modelo. No hay disponibilidad en tiempo
+  real, reservas, entradas, transporte, alojamiento ni ingresos por comisiones.
+- **PDF no es un control de seguridad**: se ofrece desde la interfaz según el
+  plan, pero cualquier navegador puede imprimir una página visible. No se usa
+  para proteger contenido sensible.
 - **Sin datos en tiempo real**: no se consultan clima, seguridad, cierres,
   eventos, tráfico ni disponibilidad.
 - **Sin rutas por carretera**: solo distancias en línea recta; no hay tiempos de
@@ -895,8 +1082,11 @@ public/            archivos estáticos
 - **Itinerario guardado como copia**: guardar de nuevo crea otra fila; no hay
   sincronización automática con cambios posteriores del chat ni edición
   colaborativa.
-- Pendientes manuales: crear `.env` con contacto real, clave de IA y credenciales
-  públicas de Supabase; aplicar la migración; configurar Site URL, redirects y
-  SMTP en Supabase; elegir proveedor de teselas para producción; definir
-  `CHAT_SIGNING_SECRET`; ejecutar la prueba RLS; publicar términos de uso y
-  política de privacidad; y validar el despliegue con tráfico real.
+- Pendientes manuales: crear `.env` con contacto real, clave de IA, credenciales
+  públicas de Supabase y `SUPABASE_SERVICE_ROLE_KEY`; aplicar las migraciones de
+  Fase 5 y Fase 6; configurar Site URL, redirects y SMTP en Supabase; elegir
+  proveedor de teselas para producción; definir `CHAT_SIGNING_SECRET` y
+  `BILLING_ANONYMOUS_SECRET`; ejecutar las pruebas RLS; publicar términos de uso,
+  condiciones de los planes y política de privacidad; conectar y auditar una
+  pasarela de pago antes de activar cobros; y validar el despliegue con tráfico
+  real.

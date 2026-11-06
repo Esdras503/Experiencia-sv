@@ -58,19 +58,53 @@ test('sendChatMessage envía el turno a /api/chat y devuelve el JSON', async () 
   )
 })
 
-test('un error del API conserva el código y el mensaje', async () => {
+test('envía el requestId y el token de sesión sin exponerlos', async () => {
+  const calls = []
+  const requestId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+
+  await withFetch(
+    async (url, options) => {
+      calls.push({ url, options })
+      return jsonResponse(200, {
+        message: 'Hola',
+        usage: { used: 3, limit: 10, remaining: 7 },
+      })
+    },
+    async () => {
+      await sendChatMessage(
+        { message: 'Hola', requestId },
+        { accessToken: 'token-de-sesion-de-prueba' },
+      )
+
+      const body = JSON.parse(calls[0].options.body)
+      assert.equal(body.requestId, requestId)
+      assert.equal(
+        calls[0].options.headers.Authorization,
+        'Bearer token-de-sesion-de-prueba',
+      )
+      assert.equal(calls[0].options.headers['Content-Type'], 'application/json')
+    },
+  )
+})
+
+test('un error del API conserva el código, el mensaje y los detalles', async () => {
   await withFetch(
     async () =>
-      jsonResponse(503, {
-        error: { code: 'AI_NOT_CONFIGURED', message: 'El asistente no está configurado.' },
+      jsonResponse(429, {
+        error: {
+          code: 'AI_QUOTA_EXCEEDED',
+          message: 'Alcanzaste el límite.',
+          details: { used: 10, limit: 10, upgradeUrl: '/planes' },
+        },
       }),
     async () => {
       await assert.rejects(
         () => sendChatMessage({ message: 'Hola' }),
         (error) => {
-          assert.equal(error.code, 'AI_NOT_CONFIGURED')
-          assert.equal(error.message, 'El asistente no está configurado.')
-          assert.equal(error.status, 503)
+          assert.equal(error.code, 'AI_QUOTA_EXCEEDED')
+          assert.equal(error.message, 'Alcanzaste el límite.')
+          assert.equal(error.status, 429)
+          assert.equal(error.details.upgradeUrl, '/planes')
           return true
         },
       )

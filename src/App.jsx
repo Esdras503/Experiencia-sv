@@ -16,6 +16,8 @@ import AccountPage from './pages/AccountPage'
 import AccountUnavailablePage from './pages/AuthUnavailablePage'
 import ItinerariesPage from './pages/ItinerariesPage'
 import ItineraryDetailPage from './pages/ItineraryDetailPage'
+import PlansPage from './pages/PlansPage'
+import CheckoutPage from './pages/CheckoutPage'
 import { useAuth } from './context/authContext.js'
 import { useAppRoute } from './hooks/useAppRoute'
 import { useDocumentTitle } from './hooks/useDocumentTitle'
@@ -36,6 +38,8 @@ const PAGE_TITLES = {
   account: 'Mi cuenta — Experiencia SV',
   itineraries: 'Mis itinerarios — Experiencia SV',
   itinerary: 'Itinerario guardado — Experiencia SV',
+  plans: 'Planes y precios — Experiencia SV',
+  checkout: 'Contratar un plan — Experiencia SV',
   'not-found': 'Página no encontrada — Experiencia SV',
 }
 
@@ -142,6 +146,10 @@ function App() {
               onOpenChat={() => setChatOpen(true)}
             />
           )}
+
+          {route.name === 'plans' && <PlansPage />}
+
+          {route.name === 'checkout' && <CheckoutPage search={search} />}
 
           {route.name === 'place' && (
             <PlaceDetailPage

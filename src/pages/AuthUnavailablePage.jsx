@@ -44,7 +44,12 @@ export default function AuthUnavailablePage({ navigate }) {
             Configurar <code>VITE_SUPABASE_URL</code> y{' '}
             <code>VITE_SUPABASE_ANON_KEY</code> con la URL y la clave publicable.
           </li>
-          <li>Reiniciar el servidor de Vite para aplicar las variables.</li>
+          <li>
+            En local, reiniciar el servidor de Vite. En Vercel, guardar las
+            variables para el entorno <strong>Production</strong> y volver a
+            desplegar: las variables <code>VITE_*</code> se incorporan durante el
+            build y no se actualizan en un despliegue ya publicado.
+          </li>
         </ol>
         <p>
           Nunca uses <code>service_role</code> en el navegador. Los pasos completos

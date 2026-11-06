@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/authContext.js'
+import { usePlanStatus } from '../context/planContext.js'
 import { getItinerary, removeItinerary } from '../services/itinerariesService.js'
 import { itineraryToView } from '../services/itineraryPayload.js'
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js'
@@ -23,6 +24,7 @@ function formatDate(value) {
 
 export default function ItineraryDetailPage({ itineraryId, navigate }) {
   const { user } = useAuth()
+  const { billingEnabled, hasPaidAccess } = usePlanStatus()
   const [record, setRecord] = useState(null)
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState(null)
@@ -115,6 +117,7 @@ export default function ItineraryDetailPage({ itineraryId, navigate }) {
   const view = itineraryToView(record)
   const createdAt = formatDate(record.created_at)
   const updatedAt = formatDate(record.updated_at)
+  const canExport = !billingEnabled || hasPaidAccess
 
   return (
     <section className="saved-page itinerary-detail" aria-labelledby="itinerary-title">
@@ -147,6 +150,19 @@ export default function ItineraryDetailPage({ itineraryId, navigate }) {
             >
               Editar itinerario
             </button>
+            {canExport ? (
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={() => window.print()}
+              >
+                Exportar PDF
+              </button>
+            ) : (
+              <a className="button-secondary" href="/planes">
+                Exportar PDF con Pro
+              </a>
+            )}
             <button
               type="button"
               className="button-secondary"

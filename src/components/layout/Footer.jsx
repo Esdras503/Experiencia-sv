@@ -18,6 +18,9 @@ export default function Footer({ pathname, onNavigateHome }) {
         </span>
       </a>
       <p>Descubre lo extraordinario de El Salvador.</p>
+      <nav className="footer-links" aria-label="Enlaces del pie de página">
+        <a href="/planes">Planes y precios</a>
+      </nav>
       <span>© {new Date().getFullYear()} Experiencia SV</span>
     </footer>
   )

@@ -5,6 +5,7 @@ import {
   getCheckoutHref,
   getPlan,
 } from '../../shared/plans.js'
+import { DEMO_MODE_BANNER } from '../../shared/demoMode.js'
 import { useAuth } from '../context/authContext.js'
 import { usePlanStatus } from '../context/planContext.js'
 
@@ -38,6 +39,7 @@ function PlanCard({
   plan,
   authenticated,
   accountsConfigured,
+  demoMode,
   isCurrentPlan,
 }) {
   const isCurrent = isCurrentPlan(plan.id)
@@ -48,6 +50,12 @@ function PlanCard({
     primaryAction = (
       <a className="button-primary plan-cta" href="/">
         Explorar gratis <span aria-hidden="true">→</span>
+      </a>
+    )
+  } else if (demoMode) {
+    primaryAction = (
+      <a className="button-primary plan-cta" href="/">
+        Usar todas las funciones <span aria-hidden="true">→</span>
       </a>
     )
   } else if (isCurrent) {
@@ -73,6 +81,7 @@ function PlanCard({
     >
       <div className="plan-card-top">
         <span className="plan-badge">{recommended ? 'Recomendado' : plan.badge}</span>
+        {demoMode && <span className="plan-demo-pill">Incluido en demo</span>}
         {isCurrent && <span className="plan-current-pill">Plan actual</span>}
       </div>
 
@@ -86,6 +95,13 @@ function PlanCard({
         </span>
       </p>
       <p className="plan-ai-limit">{plan.aiLimitLabel}</p>
+
+      {demoMode && (
+        <p className="plan-demo-note">
+          Precio de referencia. En la demostración este plan está habilitado sin
+          cargo.
+        </p>
+      )}
 
       <PlanFeatureList features={plan.features} />
 
@@ -104,16 +120,17 @@ function PlanCard({
 }
 
 export default function PlansPage() {
-  const { configured: accountsConfigured } = useAuth()
+  const { configured: accountsConfigured, user } = useAuth()
   const {
     plan: currentPlan,
     usage,
     billingEnabled,
     paymentsEnabled,
-    authenticated,
+    demoMode,
     status,
     isCurrentPlan,
   } = usePlanStatus()
+  const authenticated = Boolean(user)
 
   const subscriptionPlans = PLANS.filter((plan) => plan.billingType !== 'pass')
   const passPlan = getPlan('pase-7-dias')
@@ -134,19 +151,36 @@ export default function PlansPage() {
         <span className="eyebrow">PLANES Y PRECIOS</span>
         <h1 id="plans-title">Descubre El Salvador a tu manera</h1>
         <p className="plans-hero-description">
-          Explora gratis o elige más consultas y herramientas para planificar tu
-          viaje. No necesitas pagar para buscar lugares, ver el mapa o conocer la
-          plataforma.
+          {demoMode
+            ? 'Durante la feria, todas las funciones están habilitadas gratuitamente. Los planes y precios siguen visibles como referencia; no se realizará ningún cobro.'
+            : 'Explora gratis o elige más consultas y herramientas para planificar tu viaje. No necesitas pagar para buscar lugares, ver el mapa o conocer la plataforma.'}
         </p>
 
         <div className="plans-hero-points" aria-label="Resumen de los planes">
-          <span>Exploración gratuita</span>
-          <span>Hasta 600 consultas de IA al mes</span>
-          <span>Pase de 7 días sin suscripción</span>
+          {demoMode ? (
+            <>
+              <span>Todas las funciones habilitadas</span>
+              <span>Sin pagos ni suscripciones</span>
+              <span>Pase de 7 días informativo</span>
+            </>
+          ) : (
+            <>
+              <span>Exploración gratuita</span>
+              <span>Hasta 600 consultas de IA al mes</span>
+              <span>Pase de 7 días sin suscripción</span>
+            </>
+          )}
         </div>
       </section>
 
-      {billingEnabled && usage && (
+      {demoMode && (
+        <p className="plans-demo-note" role="status">
+          <strong>{DEMO_MODE_BANNER}</strong> Los precios y beneficios se mantienen
+          como referencia y no se exige ningún método de pago.
+        </p>
+      )}
+
+      {!demoMode && billingEnabled && usage && (
         <aside className="plan-current-banner" aria-label="Tu plan actual">
           <div>
             <span className="eyebrow">
@@ -177,7 +211,7 @@ export default function PlansPage() {
         </aside>
       )}
 
-      {status === 'ready' && !billingEnabled && (
+      {!demoMode && status === 'ready' && !billingEnabled && (
         <p className="plans-info-note" role="status">
           Los límites de plan todavía no están activos en este entorno. Los precios
           y las condiciones que ves son los oficiales; el chat seguirá disponible
@@ -185,7 +219,7 @@ export default function PlansPage() {
         </p>
       )}
 
-      {!paymentsEnabled && (
+      {!demoMode && !paymentsEnabled && (
         <p className="plans-payment-note" role="status">
           <strong>Pago aún no habilitado.</strong> Los botones de los planes de pago
           abren el proceso de contratación, pero todavía no se puede cobrar ni se
@@ -198,8 +232,9 @@ export default function PlansPage() {
           <span className="eyebrow">ELIGE TU EXPERIENCIA</span>
           <h2 id="plans-options-title">Planes para cada tipo de viaje</h2>
           <p>
-            Puedes empezar gratis y cambiar cuando necesites más consultas o
-            herramientas de planificación.
+            {demoMode
+              ? 'En esta demostración puedes usar las funciones de cualquier plan sin pagar. Las tarjetas conservan los nombres, precios y beneficios del catálogo.'
+              : 'Puedes empezar gratis y cambiar cuando necesites más consultas o herramientas de planificación.'}
           </p>
         </div>
 
@@ -210,6 +245,7 @@ export default function PlansPage() {
               plan={plan}
               authenticated={authenticated}
               accountsConfigured={accountsConfigured}
+              demoMode={demoMode}
               isCurrentPlan={isCurrentPlan}
             />
           ))}
@@ -230,15 +266,20 @@ export default function PlansPage() {
             <span>{passPlan.priceSuffix}</span>
           </p>
           <p className="pass-note">
-            La vigencia no empieza al abrir esta página ni al seleccionar el pase.
-            No incluye entradas, transporte, alojamiento ni actividades pagadas.
+            {demoMode
+              ? 'En la demostración no necesitas comprar el pase: todas sus funciones ya están habilitadas sin costo. La vigencia de 7 días se mantiene como referencia del producto.'
+              : 'La vigencia no empieza al abrir esta página ni al seleccionar el pase. No incluye entradas, transporte, alojamiento ni actividades pagadas.'}
           </p>
         </div>
 
         <div className="pass-details">
           <h3>Incluye</h3>
           <PlanFeatureList features={passPlan.features} />
-          {isCurrentPlan(passPlan.id) ? (
+          {demoMode ? (
+            <a className="button-primary plan-cta" href="/">
+              Usar todas las funciones <span aria-hidden="true">→</span>
+            </a>
+          ) : isCurrentPlan(passPlan.id) ? (
             <button type="button" className="button-secondary plan-cta" disabled>
               Pase activo
             </button>
@@ -255,10 +296,17 @@ export default function PlansPage() {
           <span className="eyebrow">COMPARACIÓN</span>
           <h2 id="comparison-title">Funcionalidades lado a lado</h2>
           <p>
-            Los límites se aplican en el servidor. Las llamadas a mapas y servicios
-            de OpenStreetMap son un consumo distinto de las consultas de IA.
+            {demoMode
+              ? 'La comparativa conserva los límites comerciales como referencia. Durante la demostración, todas las funciones premium están habilitadas sin costo.'
+              : 'Los límites se aplican en el servidor. Las llamadas a mapas y servicios de OpenStreetMap son un consumo distinto de las consultas de IA.'}
           </p>
         </div>
+
+        {demoMode && (
+          <p className="plans-demo-table-note">
+            No se aplican cuotas de plan ni bloqueos de pago en esta demostración.
+          </p>
+        )}
 
         <div className="plans-table-wrap">
           <table className="plans-table">
@@ -299,6 +347,13 @@ export default function PlansPage() {
         </div>
 
         <ul className="plans-notices">
+          {demoMode && (
+            <li>
+              El modo demostración está activo: no hay pagos, suscripciones ni
+              activaciones comerciales. Las funciones premium están disponibles
+              gratuitamente durante la feria.
+            </li>
+          )}
           {PLAN_NOTICES.map((notice) => (
             <li key={notice}>{notice}</li>
           ))}
@@ -308,24 +363,25 @@ export default function PlansPage() {
           <details>
             <summary>¿Puedo usar Experiencia SV sin pagar?</summary>
             <p>
-              Sí. El plan Explorador es gratuito e incluye búsqueda, mapa, 2
-              itinerarios guardados y 10 consultas de IA al mes.
+              {demoMode
+                ? 'Sí. En este modo todas las funciones están habilitadas gratuitamente, sin cuotas de plan ni métodos de pago.'
+                : 'Sí. El plan Explorador es gratuito e incluye búsqueda, mapa, 2 itinerarios guardados y 10 consultas de IA al mes.'}
             </p>
           </details>
           <details>
             <summary>¿Qué ocurre si alcanzo el límite de consultas?</summary>
             <p>
-              El asistente dejará de procesar nuevas consultas hasta que se renueve
-              el período o cambies de plan. La búsqueda de lugares y el mapa siguen
-              disponibles.
+              {demoMode
+                ? 'Durante la demostración no se aplican límites artificiales de suscripción. Se mantienen las protecciones técnicas del servidor contra abuso y los errores del proveedor de IA.'
+                : 'El asistente dejará de procesar nuevas consultas hasta que se renueve el período o cambies de plan. La búsqueda de lugares y el mapa siguen disponibles.'}
             </p>
           </details>
           <details>
             <summary>¿Ya se puede pagar con tarjeta?</summary>
             <p>
-              Todavía no hay una pasarela de pago conectada. Cuando se habilite, los
-              pagos se confirmarán en el backend y el pase empezará a contar en ese
-              momento. No se activa ningún plan por visitar esta página.
+              {demoMode
+                ? 'No. La demostración no procesa pagos ni activa suscripciones o pases. No se solicitará ningún dato de tarjeta.'
+                : 'Todavía no hay una pasarela de pago conectada. Cuando se habilite, los pagos se confirmarán en el backend y el pase empezará a contar en ese momento. No se activa ningún plan por visitar esta página.'}
             </p>
           </details>
           <details>

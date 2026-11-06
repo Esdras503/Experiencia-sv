@@ -69,11 +69,14 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
     plan,
     usage,
     billingEnabled,
+    demoMode,
     canSaveItineraries,
     refresh: refreshPlan,
   } = usePlanStatus()
 
-  const saveLimitReached = Boolean(user && canSaveItineraries === false)
+  const saveLimitReached = Boolean(
+    !demoMode && user && canSaveItineraries === false,
+  )
 
   const nextMessageId = useRef(1)
   const requestRef = useRef(null)
@@ -432,6 +435,7 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
           plan={plan}
           usage={usage}
           billingEnabled={billingEnabled}
+          demoMode={demoMode}
           saveLimitReached={saveLimitReached}
           onOpenPlans={handleOpenPlans}
           closeButtonRef={closeButtonRef}

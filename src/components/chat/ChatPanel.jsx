@@ -38,6 +38,7 @@ const ChatPanel = forwardRef(function ChatPanel(
     plan,
     usage,
     billingEnabled,
+    demoMode,
     saveLimitReached,
     onOpenPlans,
     closeButtonRef,
@@ -107,7 +108,7 @@ const ChatPanel = forwardRef(function ChatPanel(
         </div>
       </div>
 
-      {billingEnabled && usage && (
+      {!demoMode && billingEnabled && usage && (
         <div
           className={`chat-plan-bar${usage.remaining <= 0 ? ' is-exhausted' : ''}`}
           aria-live="polite"

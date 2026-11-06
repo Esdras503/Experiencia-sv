@@ -61,6 +61,25 @@ test('sin datos válidos devuelve Explorador sin inventar consumo', () => {
   )
 })
 
+test('normaliza el modo demostración sin cuotas ni límites de itinerarios', () => {
+  const status = normalizePlanStatus({
+    enabled: true,
+    billingEnabled: false,
+    paymentsEnabled: false,
+    demoMode: true,
+    plan: { id: 'explorador', name: 'Explorador' },
+    usage: null,
+    savedItineraries: null,
+    canSaveItineraries: true,
+  })
+
+  assert.equal(status.demoMode, true)
+  assert.equal(status.billingEnabled, false)
+  assert.equal(status.usage, null)
+  assert.equal(status.canSaveItineraries, true)
+  assert.equal(normalizePlanStatus({ demoMode: false }).demoMode, false)
+})
+
 test('fetchPlanStatus envía el token de sesión y no lo pone en la URL', async () => {
   const calls = []
 

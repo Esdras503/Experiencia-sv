@@ -38,6 +38,7 @@ test('la facturación solo se activa con credenciales de servidor', () => {
 test('sin configuración el servicio no bloquea el chat y no expone consumo', async () => {
   const service = createBillingService({ env: {} })
   assert.equal(service.enabled, false)
+  assert.equal(service.demoMode, false)
   assert.equal(service.paymentsEnabled, false)
 
   const status = await service.getStatus({ headers: {} })
@@ -52,6 +53,34 @@ test('sin configuración el servicio no bloquea el chat y no expone consumo', as
   })
   assert.equal(reservation.allowed, true)
   assert.equal(reservation.usage, null)
+})
+
+test('el modo demostración no exige service_role ni aplica cupos de plan', async () => {
+  const service = createBillingService({
+    env: { VITE_DEMO_MODE: 'true' },
+  })
+
+  assert.equal(service.demoMode, true)
+  assert.equal(service.billingEnabled, false)
+  assert.equal(service.paymentsEnabled, false)
+  assert.equal(service.reason, 'demo_mode')
+
+  const status = await service.getStatus({ headers: {} })
+  assert.equal(status.status.demoMode, true)
+  assert.equal(status.status.enabled, true)
+  assert.equal(status.status.billingEnabled, false)
+  assert.equal(status.status.paymentsEnabled, false)
+  assert.equal(status.status.usage, null)
+  assert.equal(status.status.canSaveItineraries, true)
+  assert.equal(status.setCookie, null)
+
+  const reservation = await service.reserveChat({
+    context: { userId: 'user-1', anonymousKey: null },
+    requestId: '22222222-2222-4222-8222-222222222222',
+  })
+  assert.equal(reservation.allowed, true)
+  assert.equal(reservation.usage, null)
+  assert.equal(reservation.plan, null)
 })
 
 test('la pasarela permanece deshabilitada y no simula checkout', async () => {

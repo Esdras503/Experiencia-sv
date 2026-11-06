@@ -1,4 +1,5 @@
 import { getPlan } from '../../shared/plans.js'
+import { DEMO_MODE } from '../config/demoMode.js'
 import { ApiError } from './placesService.js'
 
 const NETWORK_ERROR_MESSAGE =
@@ -45,6 +46,7 @@ export function defaultPlanStatus() {
     enabled: false,
     billingEnabled: false,
     paymentsEnabled: false,
+    demoMode: DEMO_MODE,
     authenticated: false,
     plan: getPlan('explorador'),
     period: null,
@@ -69,6 +71,7 @@ export function normalizePlanStatus(data) {
     enabled: data.enabled === true,
     billingEnabled: data.billingEnabled === true,
     paymentsEnabled: data.paymentsEnabled === true,
+    demoMode: data.demoMode === true,
     authenticated: data.authenticated === true,
     plan: {
       ...plan,

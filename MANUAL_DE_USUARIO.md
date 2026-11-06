@@ -531,6 +531,9 @@ disponible y no prometen reservas ni disponibilidad en tiempo real.
   en el servidor; si lo alcanzas, el chat muestra **Ver planes y límites**.
 - Pro y Élite no tienen un límite propio de itinerarios guardados en el plan.
 - El pase de 7 días incluye 50 consultas durante su vigencia.
+- En **modo demostración** no se aplican cuotas de plan ni el límite de 2
+  itinerarios. El chat conserva los límites técnicos contra abuso y los errores
+  del proveedor de IA.
 
 Puedes consultar tu consumo en **Mi cuenta → Tu plan** y en la barra superior del
 chat. Cuando se agota el cupo, el asistente deja de procesar consultas nuevas
@@ -542,7 +545,9 @@ funcionando.
 El pase es una alternativa para un viaje puntual, sin suscripción mensual. La
 vigencia de **7 días empieza cuando se confirma el pago**, no al abrir la página
 ni al pulsar el botón. Incluye 50 consultas de IA durante esos 7 días y no
-incluye entradas, transporte, alojamiento ni actividades pagadas.
+incluye entradas, transporte, alojamiento ni actividades pagadas. En modo
+demostración el pase no se compra ni se activa: sus funciones ya están
+disponibles sin costo.
 
 ### 9.4 Estado del pago
 
@@ -552,12 +557,36 @@ En esta versión **el pago todavía no está habilitado**:
 - esa página explica las condiciones, pero no pide datos de tarjeta;
 - el servidor no crea cobros, suscripciones ni pases;
 - **no se ha realizado ningún cargo** y no se activa ningún plan.
+- en modo demostración, la página de contratación explica que no hay pago y
+  ofrece usar todas las funciones gratuitamente.
 
 Cuando se conecte una pasarela real, el pago se verificará en el servidor y el
 plan solo se activará con la confirmación. No compartas datos de tarjeta por
 mensajes ni por canales informales.
 
-### 9.5 Reservas, disponibilidad y soporte
+### 9.5 Modo demostración o feria
+
+Durante una feria, la persona organizadora puede activar el **modo
+demostración**. Lo reconocerás por un aviso en la parte superior:
+
+> Modo demostración: todas las funciones están habilitadas gratuitamente.
+
+En este modo:
+
+- los planes siguen visibles con sus nombres, precios, características y
+  beneficios, pero se muestran como referencia;
+- no se pide tarjeta, no se procesa ningún pago y no se activa una suscripción ni
+  un pase;
+- el asistente no aplica las cuotas mensuales del plan; los límites técnicos
+  contra abuso y los errores del proveedor de IA siguen activos;
+- puedes guardar itinerarios sin el máximo de 2 del plan Explorador;
+- la exportación a PDF está disponible;
+- al desactivar la demostración, los límites comerciales vuelven a aplicarse.
+
+El modo demostración no crea funciones de negocios ni permite ver datos de otra
+cuenta. Las cuentas, los itinerarios y RLS siguen funcionando igual.
+
+### 9.6 Reservas, disponibilidad y soporte
 
 Los planes **no incluyen reservas**, entradas, transporte, alojamiento ni
 disponibilidad en tiempo real mientras no exista una integración verificada. El
@@ -593,7 +622,8 @@ no se promete atención prioritaria.
 - El chat conserva un historial reciente en el navegador; no guarda la
   conversación en el servidor.
 - Las consultas de IA y el límite de itinerarios dependen del plan; consulta
-  **Planes** y **Mi cuenta → Tu plan**.
+  **Planes** y **Mi cuenta → Tu plan**. En modo demostración no se aplican esas
+  cuotas de plan.
 - El asistente puede fallar si el proveedor de IA o OpenStreetMap no están
   disponibles. La aplicación no rellena los huecos con datos inventados.
 

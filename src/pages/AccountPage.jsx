@@ -24,6 +24,7 @@ export default function AccountPage({ navigate }) {
     plan,
     usage,
     billingEnabled,
+    demoMode,
     savedItineraries,
     canSaveItineraries,
     subscription,
@@ -191,9 +192,36 @@ export default function AccountPage({ navigate }) {
               <div className="plan-summary-heading">
                 <h2>Tu plan</h2>
                 <span className="plan-current-pill">{plan.name}</span>
+                {demoMode && <span className="plan-demo-pill">Demo</span>}
               </div>
 
-              {billingEnabled && usage ? (
+              {demoMode ? (
+                <>
+                  <p className="plan-summary-usage">
+                    <strong>Todas las funciones habilitadas</strong> gratuitamente
+                    durante la demostración.
+                  </p>
+                  <p className="plan-summary-demo-note">
+                    No se aplican cuotas de consultas ni límites de itinerarios del
+                    plan. No se realizará ningún cobro ni se activará una
+                    suscripción.
+                  </p>
+                  <dl className="account-details plan-summary-details">
+                    <div>
+                      <dt>Consultas de IA</dt>
+                      <dd>Sin límite de plan en demo</dd>
+                    </div>
+                    <div>
+                      <dt>Itinerarios guardados</dt>
+                      <dd>Sin límite de plan en demo</dd>
+                    </div>
+                    <div>
+                      <dt>Pago</dt>
+                      <dd>No habilitado en la demostración</dd>
+                    </div>
+                  </dl>
+                </>
+              ) : billingEnabled && usage ? (
                 <>
                   <p className="plan-summary-usage">
                     <strong>

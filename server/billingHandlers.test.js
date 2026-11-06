@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequestHandler } from './handlers.js'
+import { createBillingService } from './billing/billingService.js'
 import { AppError, ERROR_CODES } from './errors.js'
 
 const TEST_SECRET = 'secreto-de-pruebas-suficientemente-largo'
@@ -330,4 +331,86 @@ test('/api/config informa los planes sin secretos', async () => {
   const serialized = JSON.stringify(response.json)
   assert.equal(serialized.includes(TEST_AI_KEY), false)
   assert.equal(serialized.includes(TEST_SECRET), false)
+})
+
+test('el modo demostración omite la reserva y no devuelve consumo de plan', async () => {
+  const billing = makeBilling()
+  const ai = createFakeAi([
+    finalStep({ message: 'Todo listo para la feria.', recommendedPlaceIds: [] }),
+  ])
+  const handler = makeHandler({
+    billingService: billing,
+    aiClient: ai,
+    env: { VITE_DEMO_MODE: 'true' },
+  })
+
+  const response = await handler(chatRequest())
+
+  assert.equal(response.status, 200)
+  assert.equal(response.json.message, 'Todo listo para la feria.')
+  assert.equal('usage' in response.json, false)
+  assert.equal('plan' in response.json, false)
+  assert.equal(ai.calls.length, 1)
+  assert.equal(billing.calls.resolveContext.length, 0)
+  assert.equal(billing.calls.reserveChat.length, 0)
+  assert.equal(billing.calls.commitChat.length, 0)
+  assert.equal(billing.calls.releaseChat.length, 0)
+})
+
+test('/api/billing/status y /api/config exponen el modo demostración sin cuotas', async () => {
+  const billing = createBillingService({ env: { VITE_DEMO_MODE: 'true' } })
+  const handler = makeHandler({
+    billingService: billing,
+    env: { VITE_DEMO_MODE: 'true' },
+  })
+
+  const status = await handler({
+    method: 'GET',
+    pathname: '/api/billing/status',
+    body: {},
+    query: {},
+    headers: {},
+    ip: '203.0.113.59',
+  })
+  assert.equal(status.status, 200)
+  assert.equal(status.json.demoMode, true)
+  assert.equal(status.json.billingEnabled, false)
+  assert.equal(status.json.usage, null)
+  assert.equal(status.json.canSaveItineraries, true)
+
+  const config = await handler({
+    method: 'GET',
+    pathname: '/api/config',
+    body: {},
+    query: {},
+    headers: {},
+    ip: '203.0.113.59',
+  })
+  assert.equal(config.status, 200)
+  assert.equal(config.json.demo.enabled, true)
+  assert.equal(config.json.billing.enabled, false)
+  assert.equal(config.json.billing.paymentsEnabled, false)
+  assert.equal(config.json.billing.demoMode, true)
+})
+
+test('el checkout en demostración no crea pagos ni activa planes', async () => {
+  const billing = makeBilling()
+  const handler = makeHandler({
+    billingService: billing,
+    env: { VITE_DEMO_MODE: 'true' },
+  })
+
+  const response = await handler({
+    method: 'POST',
+    pathname: '/api/billing/checkout',
+    body: { planId: 'pro' },
+    query: {},
+    headers: {},
+    ip: '203.0.113.60',
+  })
+
+  assert.equal(response.status, 503)
+  assert.equal(response.json.error.code, ERROR_CODES.PAYMENTS_NOT_CONFIGURED)
+  assert.match(response.json.error.message, /demostración/i)
+  assert.equal(billing.calls.commitChat.length, 0)
 })

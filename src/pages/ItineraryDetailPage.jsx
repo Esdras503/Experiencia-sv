@@ -24,7 +24,7 @@ function formatDate(value) {
 
 export default function ItineraryDetailPage({ itineraryId, navigate }) {
   const { user } = useAuth()
-  const { billingEnabled, hasPaidAccess } = usePlanStatus()
+  const { billingEnabled, demoMode, hasPaidAccess } = usePlanStatus()
   const [record, setRecord] = useState(null)
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState(null)
@@ -117,7 +117,7 @@ export default function ItineraryDetailPage({ itineraryId, navigate }) {
   const view = itineraryToView(record)
   const createdAt = formatDate(record.created_at)
   const updatedAt = formatDate(record.updated_at)
-  const canExport = !billingEnabled || hasPaidAccess
+  const canExport = demoMode || !billingEnabled || hasPaidAccess
 
   return (
     <section className="saved-page itinerary-detail" aria-labelledby="itinerary-title">

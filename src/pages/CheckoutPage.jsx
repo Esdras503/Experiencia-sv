@@ -23,6 +23,7 @@ export default function CheckoutPage({ search = '' }) {
     isCurrentPlan,
     paymentsEnabled,
     billingEnabled,
+    demoMode,
     subscription,
     pass,
     status: planStatus,
@@ -45,6 +46,101 @@ export default function CheckoutPage({ search = '' }) {
         <a className="button-primary" href="/planes">
           Ver planes y precios
         </a>
+      </section>
+    )
+  }
+
+  if (demoMode) {
+    return (
+      <section className="checkout-page" aria-labelledby="checkout-demo-title">
+        <nav className="account-breadcrumbs" aria-label="Ruta de navegación">
+          <a href="/">Inicio</a>
+          <span aria-hidden="true">/</span>
+          <a href="/planes">Planes y precios</a>
+          <span aria-hidden="true">/</span>
+          <span aria-current="page">Modo demostración</span>
+        </nav>
+
+        <header className="checkout-heading">
+          <span className="eyebrow">MODO DEMOSTRACIÓN</span>
+          <h1 id="checkout-demo-title">{plan.name}</h1>
+          <p>
+            Esta feria usa el modo demostración. Todas las funciones del plan ya
+            están habilitadas gratuitamente, no se solicita ningún método de pago y
+            no se activa ninguna suscripción ni pase.
+          </p>
+        </header>
+
+        <div className="checkout-grid">
+          <div className="checkout-card">
+            <div className="checkout-plan-heading">
+              <div>
+                <span className="plan-badge">
+                  {plan.billingType === 'pass'
+                    ? 'Pase de 7 días'
+                    : 'Suscripción mensual'}
+                </span>
+                <h2>{plan.name}</h2>
+              </div>
+              <span className="plan-demo-pill">Incluido en demo</span>
+            </div>
+
+            <p className="checkout-price">
+              <strong>{plan.price}</strong>
+              <span>{plan.priceSuffix}</span>
+            </p>
+
+            <ul className="plan-features">
+              {plan.features.map((feature) => (
+                <li key={feature}>
+                  <span className="plan-check" aria-hidden="true">
+                    ✓
+                  </span>
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+
+            <p className="checkout-note">
+              El precio se muestra únicamente como referencia del catálogo. En la
+              demostración no hay cobro, no se piden datos de tarjeta y no se crea
+              una suscripción.
+            </p>
+          </div>
+
+          <aside
+            className="checkout-summary"
+            aria-label="Resumen del modo demostración"
+          >
+            <h2>Resumen</h2>
+            <dl className="checkout-summary-list">
+              <div>
+                <dt>Plan</dt>
+                <dd>{plan.name}</dd>
+              </div>
+              <div>
+                <dt>Importe</dt>
+                <dd>Sin cargo</dd>
+              </div>
+              <div>
+                <dt>Modo</dt>
+                <dd>Demostración</dd>
+              </div>
+            </dl>
+
+            <AuthMessage tone="info">
+              Todas las funciones están habilitadas gratuitamente. No se ha
+              realizado ningún cobro y no se activará ningún plan desde esta página.
+            </AuthMessage>
+
+            <a className="button-primary checkout-action" href="/">
+              Usar todas las funciones
+            </a>
+            <a className="plan-secondary-link" href="/planes">
+              Volver a planes y precios
+            </a>
+          </aside>
+        </div>
       </section>
     )
   }

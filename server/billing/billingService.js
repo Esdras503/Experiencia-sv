@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { DEMO_MODE_BANNER, resolveDemoMode } from '../../shared/demoMode.js'
 import { FREE_PLAN_ID, getPlan } from '../../shared/plans.js'
 import { AppError, ERROR_CODES, redactSecrets } from '../errors.js'
 import { resolveAnonymousIdentity } from './anonymous.js'
@@ -40,6 +41,7 @@ export function resolveBillingConfig(env = {}) {
     serviceRoleKey,
     configured,
     enabled,
+    demoMode: resolveDemoMode(env),
     anonymousSecret,
     secureCookies: env.VERCEL === '1' || env.NODE_ENV === 'production',
     paymentsEnabled: PAYMENTS_ENABLED,
@@ -73,6 +75,7 @@ function disabledStatus() {
     enabled: false,
     billingEnabled: false,
     paymentsEnabled: false,
+    demoMode: false,
     authenticated: false,
     plan: statusPlan(FREE_PLAN_ID),
     period: null,
@@ -84,11 +87,84 @@ function disabledStatus() {
   }
 }
 
+function demoStatus() {
+  return {
+    enabled: true,
+    billingEnabled: false,
+    paymentsEnabled: false,
+    demoMode: true,
+    demoMessage: DEMO_MODE_BANNER,
+    authenticated: false,
+    plan: statusPlan(FREE_PLAN_ID),
+    period: null,
+    usage: null,
+    savedItineraries: null,
+    canSaveItineraries: true,
+    subscription: null,
+    pass: null,
+  }
+}
+
+export function createDemoBillingService({ syncDemoMode = async () => false } = {}) {
+  let syncPromise = null
+
+  function ensureDemoModeSynced() {
+    if (!syncPromise) {
+      syncPromise = Promise.resolve()
+        .then(() => syncDemoMode(true))
+        .catch(() => false)
+    }
+    return syncPromise
+  }
+
+  // El backend es la fuente de verdad para el cupo. En demostración no se
+  // reserva ni se confirma consumo de plan; los límites técnicos del chat
+  // (IP, sesión y concurrencia) siguen activos en handlers.js.
+  void ensureDemoModeSynced()
+
+  return {
+    enabled: true,
+    billingEnabled: false,
+    paymentsEnabled: false,
+    demoMode: true,
+    configured: false,
+    reason: 'demo_mode',
+    async resolveContext() {
+      return {
+        userId: null,
+        anonymousKey: null,
+        authenticated: false,
+        setCookie: null,
+      }
+    },
+    async getStatus() {
+      await ensureDemoModeSynced()
+      return { status: demoStatus(), setCookie: null }
+    },
+    async reserveChat() {
+      return {
+        allowed: true,
+        reason: null,
+        usage: null,
+        plan: null,
+        setCookie: null,
+      }
+    },
+    async commitChat() {
+      return false
+    },
+    async releaseChat() {
+      return false
+    },
+  }
+}
+
 export function createDisabledBillingService(reason = 'billing_not_configured') {
   return {
     enabled: false,
     billingEnabled: false,
     paymentsEnabled: false,
+    demoMode: false,
     configured: false,
     reason,
     async resolveContext() {
@@ -128,16 +204,6 @@ export function createBillingService({
 } = {}) {
   const config = resolveBillingConfig(env)
 
-  if (!config.enabled || !config.anonymousSecret) {
-    return createDisabledBillingService(
-      !config.configured
-        ? 'missing_supabase_server_credentials'
-        : !config.anonymousSecret
-          ? 'missing_billing_anonymous_secret'
-          : 'billing_disabled',
-    )
-  }
-
   const clientOptions = {
     auth: {
       persistSession: false,
@@ -148,8 +214,14 @@ export function createBillingService({
     global: { fetch: fetchImpl },
   }
 
-  const admin = createClient(config.url, config.serviceRoleKey, clientOptions)
-  const authClient = createClient(config.url, config.anonKey, clientOptions)
+  const admin =
+    config.url && config.serviceRoleKey
+      ? createClient(config.url, config.serviceRoleKey, clientOptions)
+      : null
+  const authClient =
+    config.url && config.anonKey
+      ? createClient(config.url, config.anonKey, clientOptions)
+      : null
 
   function logBillingError(context, error) {
     try {
@@ -160,6 +232,59 @@ export function createBillingService({
     } catch {
       // Nunca dejamos que un fallo del logger altere la respuesta.
     }
+  }
+
+  /**
+   * Mantiene sincronizado el indicador de PostgreSQL que consulta el trigger
+   * de itinerarios. Es best-effort: si la migración de demostración no está
+   * aplicada o no hay service_role, el modo demo sigue funcionando en el API.
+   */
+  function createDemoModeSynchronizer(client) {
+    let requested = null
+    let pending = null
+
+    return function syncDemoMode(enabled) {
+      if (!client) return Promise.resolve(false)
+      if (pending && requested === enabled) return pending
+
+      requested = enabled
+      pending = Promise.resolve()
+        .then(() => client.rpc('set_demo_mode', { p_enabled: enabled }))
+        .then((result) => {
+          if (result?.error) {
+            logBillingError('sincronizar modo demostración', result.error)
+            return false
+          }
+          return true
+        })
+        .catch((error) => {
+          logBillingError('sincronizar modo demostración', error)
+          return false
+        })
+
+      return pending
+    }
+  }
+
+  const syncDemoMode = createDemoModeSynchronizer(admin)
+
+  if (config.demoMode) {
+    return createDemoBillingService({ syncDemoMode })
+  }
+
+  // Al desactivar la demostración se restaura el valor de PostgreSQL para que
+  // el trigger vuelva a aplicar los límites comerciales. Si la migración de
+  // demostración no existe, el trigger anterior no lo consulta y no hay riesgo.
+  if (admin) void syncDemoMode(false)
+
+  if (!config.enabled || !config.anonymousSecret || !admin || !authClient) {
+    return createDisabledBillingService(
+      !config.configured
+        ? 'missing_supabase_server_credentials'
+        : !config.anonymousSecret
+          ? 'missing_billing_anonymous_secret'
+          : 'billing_disabled',
+    )
   }
 
   async function readUser(accessToken) {
@@ -237,6 +362,7 @@ export function createBillingService({
       enabled: true,
       billingEnabled: true,
       paymentsEnabled: config.paymentsEnabled,
+      demoMode: false,
       authenticated: context.authenticated,
       ...data,
     }
@@ -246,6 +372,7 @@ export function createBillingService({
     enabled: true,
     billingEnabled: true,
     paymentsEnabled: config.paymentsEnabled,
+    demoMode: false,
     configured: true,
     reason: null,
 

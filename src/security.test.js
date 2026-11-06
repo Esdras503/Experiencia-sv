@@ -54,7 +54,12 @@ test('solo se leen variables públicas de Vite', () => {
 
   assert.deepEqual(
     [...referenced].sort(),
-    ['VITE_SUPABASE_ANON_KEY', 'VITE_SUPABASE_PUBLISHABLE_KEY', 'VITE_SUPABASE_URL'],
+    [
+      'VITE_DEMO_MODE',
+      'VITE_SUPABASE_ANON_KEY',
+      'VITE_SUPABASE_PUBLISHABLE_KEY',
+      'VITE_SUPABASE_URL',
+    ],
   )
 })
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import Header from './components/layout/Header'
 import Footer from './components/layout/Footer'
+import DemoModeBanner from './components/layout/DemoModeBanner'
 import ChatWidget from './components/chat/ChatWidget'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import RequireAuth from './components/auth/RequireAuth'
@@ -136,6 +137,8 @@ function App() {
         onNavigateSection={handleNavigateSection}
         onNavigateHome={() => navigate('/')}
       />
+
+      <DemoModeBanner />
 
       <main id="contenido" tabIndex={-1}>
         <ErrorBoundary key={`${pathname}${search}${hash}`}>

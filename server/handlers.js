@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { getCategoryByKey, ALL_CATEGORIES_KEY } from '../shared/categories.js'
 import { MAX_CHAT_MESSAGE_LENGTH } from '../shared/chat.js'
+import {
+  DEMO_MODE_BANNER,
+  DEMO_MODE_PAYMENT_MESSAGE,
+  resolveDemoMode,
+} from '../shared/demoMode.js'
 import { getPlan } from '../shared/plans.js'
 import {
   OSM_ATTRIBUTION,
@@ -186,6 +191,7 @@ export function createRequestHandler({
   aiClient,
   billingService,
 } = {}) {
+  const demoMode = resolveDemoMode(env)
   const searchLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now })
   const generalLimiter = createRateLimiter({ limit: 60, windowMs: 60_000, now })
   const chatIpLimiter = createRateLimiter({
@@ -462,7 +468,7 @@ export function createRequestHandler({
     let reservation = null
 
     try {
-      if (resolvedBillingService.enabled) {
+      if (!demoMode && resolvedBillingService.enabled) {
         const context = await resolvedBillingService.resolveContext({ headers, ip })
         reservation = await resolvedBillingService.reserveChat({
           context,
@@ -538,9 +544,22 @@ export function createRequestHandler({
 
   async function handleBillingStatus({ headers }) {
     const result = await resolvedBillingService.getStatus({ headers })
+    const status = demoMode
+      ? {
+          ...result.status,
+          enabled: true,
+          billingEnabled: false,
+          paymentsEnabled: false,
+          demoMode: true,
+          demoMessage: DEMO_MODE_BANNER,
+          usage: null,
+          canSaveItineraries: true,
+        }
+      : result.status
+
     return jsonResponse(
       200,
-      result.status,
+      status,
       result.setCookie ? { 'Set-Cookie': result.setCookie } : undefined,
     )
   }
@@ -553,6 +572,13 @@ export function createRequestHandler({
       throw new AppError(ERROR_CODES.INVALID_REQUEST, {
         status: 400,
         message: 'El plan solicitado no existe o no requiere pago.',
+      })
+    }
+
+    if (demoMode) {
+      throw new AppError(ERROR_CODES.PAYMENTS_NOT_CONFIGURED, {
+        status: 503,
+        message: DEMO_MODE_PAYMENT_MESSAGE,
       })
     }
 
@@ -594,9 +620,14 @@ export function createRequestHandler({
         maxMessageLength: MAX_CHAT_MESSAGE_LENGTH,
       },
       billing: {
-        enabled: resolvedBillingService.enabled,
-        paymentsEnabled: resolvedBillingService.paymentsEnabled,
+        enabled: demoMode ? false : resolvedBillingService.enabled,
+        paymentsEnabled: demoMode ? false : resolvedBillingService.paymentsEnabled,
+        demoMode,
         plansUrl: '/planes',
+      },
+      demo: {
+        enabled: demoMode,
+        banner: DEMO_MODE_BANNER,
       },
     })
   }

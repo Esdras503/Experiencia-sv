@@ -85,7 +85,7 @@ export function PlanProvider({ children }) {
       isCurrentPlan(planId) {
         return data.plan?.id === planId
       },
-      hasPaidAccess: data.plan?.billingType !== 'free',
+      hasPaidAccess: data.demoMode === true || data.plan?.billingType !== 'free',
     }),
     [status, error, data, refresh, applyChatUsage],
   )

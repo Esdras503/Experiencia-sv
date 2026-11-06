@@ -47,7 +47,7 @@ gestión de itinerarios sin entrar en detalles de despliegue.
     necesaria para guardar o administrar itinerarios;
   - el navegador solo recibe la URL y la clave pública/anon de Supabase; la
     `service_role` nunca sale del backend.
-- **Fase 6 (esta entrega):** planes y monetización preparada:
+- **Fase 6:** planes y monetización preparada:
   - `/planes` con Explorador ($0.00), Experiencia Pro ($7.99/mes),
     Experiencia Élite ($14.99/mes) y el pase turístico ($3.99/7 días);
   - límites de 2 itinerarios y 10 consultas de IA/mes para Explorador, 200/mes
@@ -61,6 +61,20 @@ gestión de itinerarios sin entrar en detalles de despliegue.
     se simulan cobros y no se activan planes desde el navegador;
   - tablas separadas para eventos de pago, reservas y comisiones, sin presentar
     reservas ni ingresos que todavía no existen.
+- **Fase 7 (esta entrega):** modo demostración/feria global:
+  - se activa con `VITE_DEMO_MODE=true` y se aplica en el backend, no solo en
+    React; el frontend y el API leen la misma variable;
+  - todas las funciones y planes quedan disponibles sin pagos, suscripciones ni
+    cuotas de plan;
+  - se conservan los nombres, precios, características y límites del catálogo
+    comercial como referencia, con un aviso visible y sin redirigir a una
+    pasarela;
+  - el chat no reserva consumo de plan, pero mantiene los límites técnicos por
+    IP/sesión, la concurrencia y el control de errores del proveedor de IA;
+  - la migración de Fase 7 agrega un indicador global en PostgreSQL para que el
+    trigger de itinerarios no limite a 2 guardados durante la feria; el backend
+    lo sincroniza con `service_role` y lo revierte al desactivar la demo;
+  - al volver a `false`, el comportamiento comercial de la Fase 6 queda intacto.
 
 No se muestran lugares de demostración: todo resultado proviene de
 OpenStreetMap en el momento de la consulta. **OpenStreetMap no ofrece fotos,
@@ -256,13 +270,26 @@ muestran `Configuración pendiente`. No hay datos simulados de cuentas.
 | `BILLING_ANONYMOUS_SECRET` | Recomendada | Secreto de al menos 16 caracteres para firmar la cookie HttpOnly del cupo anónimo. Si falta, se deriva de `CHAT_SIGNING_SECRET` o de la clave de servidor. |
 | `PAYMENTS_PROVIDER` | No | Reservada para una pasarela futura. Actualmente no se usa: no hay cobros ni activaciones simuladas. |
 
+### Modo demostración (Fase 7)
+
+| Variable | ¿Obligatoria? | Uso |
+| --- | --- | --- |
+| `VITE_DEMO_MODE` | No | `true` activa la feria: funciones y planes disponibles sin pago, sin cuotas de suscripción y con el checkout deshabilitado. `false` (por defecto) conserva el modo comercial. Es pública y se incorpora al bundle; debe existir con el mismo valor en el build y en el runtime de Vercel. |
+
+`VITE_DEMO_MODE` no es un secreto ni una autorización por sí sola. El backend
+la vuelve a leer de `process.env`, expone `demoMode` en `/api/billing/status` y
+`/api/config`, y solo ese valor del servidor decide si se omiten las cuotas. No
+confíes en un botón ni en una variable del navegador para desbloquear datos
+privados: RLS y las comprobaciones del API siguen activas.
+
 No existe ninguna variable `VITE_*` con secretos: la interfaz no maneja
 contraseñas, tokens privados, la clave de IA ni la `service_role`. Las variables
-`VITE_SUPABASE_*` son públicas y quedan incluidas en el bundle; la protección
-real son las políticas RLS. Todo lo que el mapa necesita (URL de teselas y
-atribución) se entrega por `GET /api/config` y es público por diseño. La
-configuración pública del chat solo indica si está habilitado, el nombre del
-proveedor y el modelo; nunca la clave ni la URL interna del proveedor.
+`VITE_SUPABASE_*` y `VITE_DEMO_MODE` son públicas y quedan incluidas en el
+bundle; la protección real son las políticas RLS. Todo lo que el mapa necesita
+(URL de teselas y atribución) se entrega por `GET /api/config` y es público por
+diseño. La configuración pública del chat solo indica si está habilitado, el
+nombre del proveedor y el modelo; nunca la clave ni la URL interna del
+proveedor.
 
 `VITE_*` se incorpora en tiempo de compilación: después de cambiarlas hay que
 reiniciar Vite en desarrollo y volver a desplegar en Vercel. Nunca pongas
@@ -526,6 +553,40 @@ La cookie anónima y los cupos requieren `SUPABASE_SERVICE_ROLE_KEY` y la
 migración de Fase 6 aplicada. Sin esa configuración, `/planes` sigue siendo
 visible y el chat no consume cupo: es el modo seguro por defecto.
 
+### Modo demostración/feria
+
+Para una feria o una demostración controlada, define `VITE_DEMO_MODE=true` en el
+entorno de build **y** en el entorno de las funciones serverless. En Vercel,
+añádela en Production y Preview; después vuelve a desplegar para que Vite la
+incorpore. En local, cámbiala en `.env` y reinicia tanto Vite como `npm run api`.
+
+Con la demo activa:
+
+- `/planes` conserva los cuatro planes, sus precios, límites y beneficios, pero
+  muestra un aviso de demostración y no lleva a una pasarela.
+- El chat no reserva ni confirma consumo de suscripción; no devuelve
+  `AI_QUOTA_EXCEEDED` por límites de plan. Los límites técnicos por IP, sesión,
+  concurrencia, tamaño de mensaje y presupuesto de tiempo siguen activos.
+- El guardado y la edición de itinerarios no aplican el máximo del plan. La
+  exportación a PDF queda disponible.
+- `/planes/contratar` explica el modo demostración y no pide tarjeta, no crea
+  una suscripción, no activa el pase y no registra pagos.
+- El estado del plan, el consumo y el banner global vienen de
+  `/api/billing/status`; el frontend no puede activar la demo por su cuenta.
+
+Para desactivarla, vuelve a `VITE_DEMO_MODE=false` y redespliega. El backend
+escribe `app_settings.demo_mode=false` al arrancar el servicio de facturación si
+tiene `service_role`, de modo que el trigger de itinerarios recupera el límite
+comercial. Si no hay `service_role`, aplica la migración de Fase 7 y ejecuta el
+cambio de indicador una sola vez desde el SQL Editor; no desactives RLS ni
+cambies permisos de tablas para lograrlo.
+
+**Alcance de negocios:** esta base no incluye un módulo de registro,
+administración o planes para negocios. El modo demo no inventa ese módulo ni
+presenta datos de un negocio; simplemente mantiene disponibles las funciones
+existentes de usuario. Si se añade en el futuro, deberá tener su propio
+aislamiento por propietario y sus propias pruebas de RLS.
+
 ### RLS y aislamiento
 
 Las políticas de `public.profiles` permiten leer, insertar y actualizar solo la
@@ -544,11 +605,20 @@ escrituras al cliente. Las funciones de cupo (`reserve_ai_query`,
 `commit_ai_query`, `release_ai_query`, `billing_status` y
 `anonymous_billing_status`) están revocadas para `anon`/`authenticated`.
 
+La Fase 7 agrega `app_settings` con una sola fila para el indicador de
+demostración. La tabla tiene RLS, no concede lectura ni escritura a `anon` o
+`authenticated` y solo `service_role` puede ejecutar `set_demo_mode`. El trigger
+de itinerarios consulta una función `security definer`; el navegador no puede
+cambiar el indicador ni saltarse el límite comercial.
+
 La prueba SQL `supabase/tests/phase5_rls.sql` crea dos usuarios de prueba dentro
 de una transacción, comprueba lectura, escritura, borrado y suplantación entre
 ambos y termina con `ROLLBACK`. La prueba `supabase/tests/phase6_plans_rls.sql`
 hace lo mismo con suscripciones, pases, consumo, límite de itinerarios y reservas
-idempotentes. Ambas están pensadas para PostgreSQL local, no para producción.
+idempotentes. `supabase/tests/phase7_demo_mode_rls.sql` comprueba que el cliente
+no puede leer `app_settings` ni activar la demo, que `demo=true` permite guardar
+un itinerario adicional y que `demo=false` recupera el límite. Las tres están
+pensadas para PostgreSQL local, no para producción.
 
 ### Privacidad de la cuenta
 
@@ -813,6 +883,11 @@ Cubre:
   idempotencia por `requestId`; fallo del proveedor sin gastar consulta;
 - endpoints `/api/billing/status` y `/api/billing/checkout`, incluido el modo
   deshabilitado sin `service_role` y el rechazo de pagos simulados;
+- modo demostración: lectura de `VITE_DEMO_MODE`, chat sin reserva de cupo,
+  estado sin consumo, configuración pública, checkout sin pagos y comparación
+  entre demo activa/desactivada;
+- comprobaciones estáticas de la migración de Fase 7: `app_settings` de una fila,
+  RLS, `service_role` como único autorizado, trigger de itinerarios y prueba SQL;
 - normalización del estado del plan, errores con `details` y protección contra
   elusión desde el navegador;
 - prueba de seguridad del código fuente y del bundle para evitar secretos.
@@ -882,9 +957,9 @@ de Supabase y un buzón temporal:
 
 ## Despliegue en Vercel
 
-1. Aplica las migraciones de Fase 5 y Fase 6 al proyecto de Supabase de
+1. Aplica las migraciones de Fase 5, Fase 6 y Fase 7 al proyecto de Supabase de
    producción (`supabase db push` o SQL Editor, en orden) antes de abrir el
-   registro y los cupos.
+   registro, los cupos y el modo demostración.
 2. Importa el repositorio en Vercel; el proyecto detecta Vite y las funciones
    de `api/` automáticamente, incluidas `api/billing/status.js` y
    `api/billing/checkout.js`.
@@ -899,25 +974,32 @@ de Supabase y un buzón temporal:
    `ALLOWED_ORIGIN`.
 6. Define `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`, `AI_PROVIDER_NAME` y un
    `CHAT_SIGNING_SECRET` estable (mínimo 16 caracteres).
-7. No configures secretos con el prefijo `VITE_`: Vite los expondría al
+7. Para la feria, define `VITE_DEMO_MODE=true` en **Production y Preview**,
+   vuelve a desplegar y comprueba que `/api/config` devuelve
+   `demo.enabled:true` y `billing.enabled:false`. Para volver al modo comercial,
+   cámbiala a `false` y redespliega. No configures la demo como una variable
+   secreta: es pública.
+8. No configures secretos con el prefijo `VITE_`: Vite los expondría al
    navegador. La clave de IA y la `service_role` solo pueden vivir en el backend.
-8. En Supabase, actualiza **Authentication > URL Configuration** con el dominio
+9. En Supabase, actualiza **Authentication > URL Configuration** con el dominio
    de producción como Site URL y añade las Redirect URLs exactas:
    `https://tu-dominio/cuenta/iniciar-sesion` y
    `https://tu-dominio/cuenta/restablecer`. Si usas previews de Vercel, añade
    también sus dominios o un patrón controlado; no dejes redirects abiertos.
-9. Configura un SMTP propio en Supabase si va a haber registro público. El
-   correo integrado tiene un límite muy bajo y puede devolver
-   `over_email_send_rate_limit`.
-10. Verifica `GET /api/config` en el dominio desplegado: debe indicar
-    `chat.enabled: true` y `billing.enabled: true` sin mostrar claves, y prueba
-    registro, confirmación, login, guardado y `/planes`.
-11. Prueba `GET /api/billing/status` con una sesión y sin sesión, y comprueba
-    que el consumo aumenta tras un turno real. Prueba un turno real del chat y
-    confirma el costo/uso en el panel de tu proveedor.
-12. La contratación seguirá devolviendo `PAYMENTS_NOT_CONFIGURED` hasta que se
-    conecte una pasarela real. No actives cobros sin webhooks firmados,
-    verificación de importes e idempotencia.
+10. Configura un SMTP propio en Supabase si va a haber registro público. El
+    correo integrado tiene un límite muy bajo y puede devolver
+    `over_email_send_rate_limit`.
+11. Verifica `GET /api/config` en el dominio desplegado: debe indicar
+    `chat.enabled: true` y el estado de facturación o demo sin mostrar claves, y
+    prueba registro, confirmación, login, guardado y `/planes`.
+12. Prueba `GET /api/billing/status` con una sesión y sin sesión, y comprueba
+    que el consumo aumenta tras un turno real solo cuando la demo está
+    desactivada. Prueba un turno real del chat y confirma el costo/uso en el
+    panel de tu proveedor.
+13. La contratación seguirá devolviendo `PAYMENTS_NOT_CONFIGURED` hasta que se
+    conecte una pasarela real. En demo, el mismo código devuelve ese error con
+    un mensaje específico y no crea pagos. No actives cobros sin webhooks
+    firmados, verificación de importes e idempotencia.
 
 Notas:
 
@@ -969,6 +1051,43 @@ Notas:
   al proyecto de la URL. Si falla con `Email not confirmed`, confirma la cuenta o
   revisa el SMTP/redirects de Supabase. La sesión de `localhost` no se comparte
   con el dominio de Vercel: hay que iniciar sesión de nuevo en producción.
+
+### Supabase Preview Branch: provisioning fallido
+
+Esta revisión **no eliminó ni recreó** la integración de Supabase con Vercel. Para
+diagnosticar un error de provisioning sin afectar producción, revisa en este
+orden:
+
+1. En Vercel, abre **Project > Integrations > Supabase** y anota el estado de la
+   integración, el entorno afectado (Preview) y el ID del despliegue que falló.
+   No cambies la integración todavía.
+2. En Supabase, abre **Manage Branches**, localiza la rama de preview y pulsa
+   **View logs**. El paso que aparece en `DEAD` indica la causa real; no bases el
+   diagnóstico solo en el mensaje genérico de Vercel.
+3. Comprueba que el proyecto base esté activo (no pausado), que el plan incluya
+   branching y que no se haya alcanzado el límite de ramas. Un límite de plan es
+   una causa habitual y no se arregla reinstalando la integración.
+4. Verifica que el repositorio de GitHub esté conectado a Supabase y que la
+   integración conserve acceso al repositorio. Si se revocó el permiso o se
+   cambió el repositorio, la rama de preview no puede provisionarse.
+5. Reproduce las migraciones en local con `supabase db reset` y revisa los logs
+   de la Fase 5, Fase 6 y Fase 7. Una migración que falla en la rama de preview
+   aborta el provisioning; en ese caso corrige el SQL y vuelve a desplegar, no
+   borres la integración.
+6. Revisa las variables de **Preview** en Vercel: los nombres deben coincidir con
+   Production. La falta de `SUPABASE_SERVICE_ROLE_KEY` no debería impedir que la
+   rama se cree, pero desactiva las cuotas y la sincronización de la demo. Si
+   `VITE_DEMO_MODE` está activo en Preview, debe estar también en el runtime de
+   las funciones.
+7. Si la rama quedó en error, reintenta primero un despliegue nuevo. Si los logs
+   confirman que es una rama huérfana, elimina **solo esa rama de preview** desde
+   el panel de Supabase; no elimines ni recrees la integración. Para un despliegue
+   urgente a Production, publica sin esperar a la rama de preview y conserva el
+   error documentado para el soporte.
+
+La integración no se puede diagnosticar por completo desde este repositorio: los
+logs viven en los paneles de Vercel y Supabase y requieren acceso a la cuenta. No
+hay CLI ni token de Vercel configurados en este entorno.
 
 ## Estructura del proyecto
 
@@ -1049,7 +1168,20 @@ public/            archivos estáticos
 - **Cupos condicionados a configuración**: sin `SUPABASE_SERVICE_ROLE_KEY` y la
   migración de Fase 6, `/planes` es informativa y el chat no consume cupo. La
   migración no se aplicó al proyecto remoto en esta sesión; las pruebas SQL de
-  Fase 5 y Fase 6 siguen pendientes de ejecutarse contra PostgreSQL local.
+  Fase 5, Fase 6 y Fase 7 siguen pendientes de ejecutarse contra PostgreSQL local.
+- **Modo demostración condicionado a la migración de Fase 7**: el backend omite
+  las cuotas sin base de datos, pero el trigger de itinerarios necesita
+  `app_settings.demo_mode` para dejar de limitar a 2 guardados. Si aplicaste la
+  Fase 6 y no la Fase 7, el guardado seguirá limitado aunque `VITE_DEMO_MODE` sea
+  `true`. Aplica la Fase 7 y sincroniza el indicador con `service_role`; no
+  desactives RLS.
+- **Sin módulo de negocios**: no existe registro, administración ni planes
+  separados para negocios en esta base. El modo demo no crea datos de negocios ni
+  presenta funciones que no estén implementadas.
+- **Preview Branch de Supabase pendiente de diagnosticar**: el error de
+  provisioning no se pudo reproducir desde este entorno porque faltan los logs y
+  el acceso a la integración de Vercel. Sigue la lista de diagnóstico anterior;
+  no se eliminó ni recreó la integración.
 - **Reservas y comisiones no disponibles**: las tablas `bookings` y
   `booking_commissions` solo preparan el modelo. No hay disponibilidad en tiempo
   real, reservas, entradas, transporte, alojamiento ni ingresos por comisiones.

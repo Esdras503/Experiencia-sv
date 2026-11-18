@@ -62,6 +62,8 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
   const [saveStatus, setSaveStatus] = useState('idle')
   const [saveError, setSaveError] = useState(null)
   const [savedItineraryId, setSavedItineraryId] = useState(null)
+  const [budgetEstimate, setBudgetEstimate] = useState(null)
+  const [budgetWarning, setBudgetWarning] = useState(null)
 
   const { user, session, configured: accountsConfigured } = useAuth()
   const {
@@ -160,6 +162,14 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
       if (payload.itinerary && typeof payload.itineraryToken === 'string') {
         setItinerary(payload.itinerary)
         setItineraryToken(payload.itineraryToken)
+        setBudgetEstimate(
+          payload.budgetEstimate && typeof payload.budgetEstimate === 'object'
+            ? payload.budgetEstimate
+            : null,
+        )
+        setBudgetWarning(
+          typeof payload.budgetWarning === 'string' ? payload.budgetWarning : null,
+        )
         setSaveStatus('idle')
         setSaveError(null)
         setSavedItineraryId(null)
@@ -269,6 +279,8 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
     setSaveStatus('idle')
     setSaveError(null)
     setSavedItineraryId(null)
+    setBudgetEstimate(null)
+    setBudgetWarning(null)
     inputRef.current?.focus()
   }
 
@@ -418,6 +430,8 @@ export default function ChatWidget({ open, onOpen, onClose, navigate }) {
           error={error}
           canRetry={Boolean(pending)}
           itinerary={itinerary}
+          budgetEstimate={budgetEstimate}
+          budgetWarning={budgetWarning}
           suggestions={suggestions}
           onRetry={handleRetry}
           onCancel={handleCancel}

@@ -84,7 +84,12 @@ function finalStep(payload) {
   return { content: JSON.stringify(payload), toolCalls: [] }
 }
 
-function makeService({ steps, placeOptions, env = {} } = {}) {
+function makeService({
+  steps,
+  placeOptions,
+  env = {},
+  estimateItineraryBudget = null,
+} = {}) {
   const fakePlaces = createFakePlaceService(placeOptions)
   const ai = createFakeAi(steps)
   const chatService = createChatService({
@@ -94,6 +99,7 @@ function makeService({ steps, placeOptions, env = {} } = {}) {
     env,
     now: () => 1_700_000_000_000,
     logError: () => {},
+    estimateItineraryBudget,
   })
   return { chatService, ai, places: fakePlaces }
 }
@@ -182,6 +188,134 @@ test('usa las herramientas, valida los IDs y construye el itinerario', async () 
   assert.equal(verified.stops[1].place.id, lake.id)
 })
 
+test('calcula el presupuesto con el servidor y lo agrega al itinerario del chat', async () => {
+  const budgetCalls = []
+  const estimate = {
+    currency: 'USD',
+    generatedAt: '2026-11-17T12:00:00.000Z',
+    inputs: {
+      travelers: 2,
+      adults: 2,
+      children: 0,
+      days: 1,
+      nights: 0,
+      includeLodging: false,
+      transportMode: 'particular',
+      mealTier: 'estandar',
+      lodgingTier: 'estandar',
+    },
+    totals: {
+      minCents: 12000,
+      maxCents: 15000,
+      perPersonMinCents: 6000,
+      perPersonMaxCents: 7500,
+      perDayMinCents: 12000,
+      perDayMaxCents: 15000,
+    },
+    route: {
+      distanceMeters: 25000,
+      durationSeconds: 2400,
+      source: 'osrm',
+    },
+    verification: {
+      entranceStatus: 'unverified',
+      verifiedEntrances: 0,
+      estimatedEntrances: 0,
+      unverifiedEntrances: 1,
+    },
+    budgetComparison: { status: 'within' },
+    breakdown: [],
+    assumptions: [],
+    warnings: [],
+    pricingSource: 'supabase',
+  }
+
+  const { chatService } = makeService({
+    placeOptions: { searchPlaces: [beach] },
+    estimateItineraryBudget: async (itinerary, options) => {
+      budgetCalls.push({ itinerary, options })
+      return estimate
+    },
+    steps: [
+      toolStep([
+        {
+          id: 'call_1',
+          type: 'function',
+          function: { name: 'search_places', arguments: '{"query":"El Tunco"}' },
+        },
+      ]),
+      finalStep({
+        message: 'Listo, armé tu plan.',
+        recommendedPlaceIds: [beach.id],
+        suggestions: [],
+        itinerary: {
+          title: 'Un día en la playa',
+          travelers: 2,
+          durationDays: 1,
+          budget: { amount: 80, currency: 'USD', scope: 'total' },
+          stops: [{ placeId: beach.id, reason: 'Visitar la playa' }],
+        },
+      }),
+    ],
+  })
+
+  const result = await chatService.handleChat({ message: 'Planea un día en la playa' })
+
+  assert.equal(budgetCalls.length, 1)
+  assert.equal(budgetCalls[0].itinerary.stops[0].place.id, beach.id)
+  assert.equal(budgetCalls[0].options.persist, false)
+  assert.equal(result.budgetEstimate, estimate)
+  assert.equal(result.budgetWarning, null)
+  assert.equal(result.meta.budget.estimated, true)
+  assert.equal(result.itinerary.budgetEstimate.totalMinCents, 12000)
+  assert.match(result.message, /Presupuesto estimado por el servidor/)
+  assert.match(result.message, /\$120\.00–\$150\.00/)
+  assert.match(result.message, /dentro del límite declarado/)
+
+  const verified = verifyItineraryToken(result.itineraryToken, {
+    secret: SECRET,
+    now: 1_700_000_000_000,
+  })
+  assert.equal(verified.budgetEstimate.totalMinCents, 12000)
+  assert.equal(verified.budgetEstimate.transportMode, 'particular')
+})
+
+test('un fallo del presupuesto no impide devolver el itinerario ni el chat', async () => {
+  const { chatService } = makeService({
+    placeOptions: { searchPlaces: [beach] },
+    estimateItineraryBudget: async () => {
+      throw new Error('OSRM y tarifas no disponibles')
+    },
+    steps: [
+      toolStep([
+        {
+          id: 'call_1',
+          type: 'function',
+          function: { name: 'search_places', arguments: '{"query":"El Tunco"}' },
+        },
+      ]),
+      finalStep({
+        message: 'Listo, armé tu plan.',
+        recommendedPlaceIds: [beach.id],
+        suggestions: [],
+        itinerary: {
+          title: 'Un día en la playa',
+          stops: [{ placeId: beach.id, reason: 'Visitar la playa' }],
+        },
+      }),
+    ],
+  })
+
+  const result = await chatService.handleChat({ message: 'Planea un día en la playa' })
+
+  assert.ok(result.itinerary)
+  assert.equal(result.budgetEstimate, null)
+  assert.match(result.budgetWarning, /No se pudo completar el cálculo/)
+  assert.match(result.message, /cálculo detallado del presupuesto no se pudo completar/)
+  assert.equal(result.meta.budget.estimated, false)
+  assert.equal(result.itinerary.budgetEstimate, undefined)
+})
+
 test('descarta lugares inventados y no los presenta como resultados', async () => {
   const { chatService } = makeService({
     placeOptions: { searchPlaces: [beach] },
@@ -253,6 +387,104 @@ test('las modificaciones conservan las paradas del itinerario firmado', async ()
   )
   assert.equal(result.itinerary.title, 'Plan original')
   assert.ok(result.itinerary.stops[1].distanceFromPreviousMeters > 0)
+})
+
+test('recalcula el presupuesto al cambiar personas, límite, transporte y comida', async () => {
+  const current = buildItinerary(
+    {
+      title: 'Plan original',
+      travelers: 2,
+      durationDays: 1,
+      budget: { amount: 120, currency: 'USD', scope: 'total' },
+      budgetOptions: {
+        transportMode: 'particular',
+        mealTier: 'estandar',
+        includeLodging: false,
+      },
+      stops: [{ placeId: beach.id, reason: 'parada original' }],
+    },
+    { allowedPlaces: new Map([[beach.id, beach]]) },
+  )
+  const currentToken = signItinerary(current, { secret: SECRET })
+  const budgetCalls = []
+  const estimate = {
+    currency: 'USD',
+    generatedAt: '2026-11-17T12:00:00.000Z',
+    inputs: {
+      travelers: 4,
+      adults: 4,
+      children: 0,
+      days: 1,
+      nights: 0,
+      includeLodging: false,
+      transportMode: 'publico',
+      mealTier: 'economico',
+      lodgingTier: 'estandar',
+    },
+    totals: {
+      minCents: 9000,
+      maxCents: 11000,
+      perPersonMinCents: 2250,
+      perPersonMaxCents: 2750,
+      perDayMinCents: 9000,
+      perDayMaxCents: 11000,
+    },
+    route: { distanceMeters: 12000, durationSeconds: 1800, source: 'osrm' },
+    verification: {
+      entranceStatus: 'verified',
+      verifiedEntrances: 1,
+      estimatedEntrances: 0,
+      unverifiedEntrances: 0,
+    },
+    budgetComparison: { status: 'within' },
+    breakdown: [],
+    assumptions: [],
+    warnings: [],
+    pricingSource: 'supabase',
+  }
+
+  const { chatService } = makeService({
+    placeOptions: { searchPlaces: [beach] },
+    estimateItineraryBudget: async (itinerary, options) => {
+      budgetCalls.push({ itinerary, options })
+      return estimate
+    },
+    steps: [
+      finalStep({
+        message: 'Ajusté el plan para cuatro personas y un presupuesto de $200.',
+        recommendedPlaceIds: [beach.id],
+        suggestions: [],
+        itinerary: {
+          title: 'Plan actualizado',
+          travelers: 4,
+          durationDays: 1,
+          budget: { amount: 200, currency: 'USD', scope: 'total' },
+          budgetOptions: {
+            transportMode: 'publico',
+            mealTier: 'economico',
+            includeLodging: false,
+          },
+          stops: [{ placeId: beach.id, reason: 'misma parada' }],
+        },
+      }),
+    ],
+  })
+
+  const result = await chatService.handleChat({
+    message: 'Somos cuatro personas, sube el límite a $200 y usa transporte público con comida económica.',
+    itineraryToken: currentToken,
+  })
+
+  assert.equal(budgetCalls.length, 1)
+  assert.equal(budgetCalls[0].itinerary.travelers, 4)
+  assert.equal(budgetCalls[0].itinerary.budget.amount, 200)
+  assert.equal(budgetCalls[0].itinerary.budgetOptions.transportMode, 'publico')
+  assert.equal(budgetCalls[0].itinerary.budgetOptions.mealTier, 'economico')
+  assert.equal(budgetCalls[0].options.persist, false)
+  assert.equal(result.budgetEstimate, estimate)
+  assert.equal(result.itinerary.budgetEstimate.partySize, 4)
+  assert.equal(result.itinerary.budgetEstimate.transportMode, 'publico')
+  assert.equal(result.itinerary.budgetEstimate.totalMaxCents, 11000)
 })
 
 test('limita la cantidad de llamadas a herramientas por turno', async () => {

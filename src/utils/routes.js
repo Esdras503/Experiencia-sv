@@ -7,6 +7,7 @@ const STATIC_ROUTES = {
   '/itinerarios': { name: 'itineraries' },
   '/planes': { name: 'plans' },
   '/planes/contratar': { name: 'checkout' },
+  '/admin/presupuestos': { name: 'admin-budget' },
 }
 
 function decodeSegment(value) {

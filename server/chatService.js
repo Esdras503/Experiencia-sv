@@ -1,3 +1,4 @@
+import { formatCentsForPrompt, summarizeBudgetEstimate } from '../shared/budget.js'
 import { MAX_CHAT_PLACES } from '../shared/chat.js'
 import { AppError, ERROR_CODES, redactSecrets } from './errors.js'
 import { CHAT_TOOLS, createChatToolRunner } from './chatTools.js'
@@ -16,6 +17,8 @@ const MAX_SUGGESTION_LENGTH = 90
 const MAX_SUGGESTIONS = 3
 const DEFAULT_CHAT_TIMEOUT_MS = 27_000
 const DEFAULT_ITINERARY_TTL_MS = 12 * 60 * 60 * 1000
+const DEFAULT_CHAT_BUDGET_TIMEOUT_MS = 4000
+const CHAT_BUDGET_RESERVE_MS = 1200
 
 function clampInteger(value, fallback, minimum, maximum) {
   const parsed = Number.parseInt(value, 10)
@@ -67,6 +70,36 @@ function sanitizeSuggestions(value) {
   }
 
   return suggestions
+}
+
+function formatBudgetRange(estimate) {
+  const min = formatCentsForPrompt(estimate?.totals?.minCents)
+  const max = formatCentsForPrompt(estimate?.totals?.maxCents)
+  return min === max ? min : `${min}–${max}`
+}
+
+function budgetComparisonNote(estimate) {
+  const comparison = estimate?.budgetComparison
+  if (!comparison || comparison.status === 'unavailable') return ''
+  if (comparison.status === 'within') {
+    return ' El rango máximo queda dentro del límite declarado.'
+  }
+  if (comparison.status === 'over') {
+    return ' El rango mínimo supera el límite declarado.'
+  }
+  return ' El rango cruza el límite declarado; conviene ajustar el plan.'
+}
+
+function appendBudgetNote(message, estimate, warning) {
+  if (!estimate) {
+    return warning
+      ? `${message}\n\nEl cálculo detallado del presupuesto no se pudo completar. Puedes reintentarlo desde la tarjeta de presupuesto.`
+      : message
+  }
+  const inputs = estimate.inputs ?? {}
+  const people = inputs.travelers ?? 1
+  const days = inputs.days ?? 1
+  return `${message}\n\nPresupuesto estimado por el servidor: ${formatBudgetRange(estimate)} para ${people} persona(s) y ${days} día(s), con tarifas configurables. No es una cotización; revisa el desglose, las advertencias y los precios marcados como no verificados.${budgetComparisonNote(estimate)}`
 }
 
 function parseToolArguments(rawArguments) {
@@ -127,6 +160,7 @@ export function createChatService({
   env = {},
   now = Date.now,
   logError = console.error,
+  estimateItineraryBudget = null,
 } = {}) {
   const enabled = Boolean(aiClient && aiClient.enabled !== false)
   const maxToolCalls = clampInteger(env.CHAT_MAX_TOOL_CALLS, 5, 1, 6)
@@ -143,6 +177,12 @@ export function createChatService({
     DEFAULT_ITINERARY_TTL_MS,
     5 * 60 * 1000,
     7 * 24 * 60 * 60 * 1000,
+  )
+  const chatBudgetTimeoutMs = clampInteger(
+    env.CHAT_BUDGET_TIMEOUT_MS,
+    DEFAULT_CHAT_BUDGET_TIMEOUT_MS,
+    1000,
+    6000,
   )
 
   async function handleChat({ message, history = [], itineraryToken = null, signal } = {}) {
@@ -340,6 +380,53 @@ export function createChatService({
         : '\n\nNo se pudo crear un itinerario con lugares verificados. Intenta precisar una zona o categoría.'
     }
 
+    let budgetEstimate = null
+    let budgetWarning = null
+    if (itinerary && typeof estimateItineraryBudget === 'function') {
+      const remainingMs = chatTimeoutMs - (now() - startedAt) - CHAT_BUDGET_RESERVE_MS
+      if (signal?.aborted) {
+        budgetWarning = 'La solicitud se canceló antes de calcular el presupuesto.'
+      } else if (remainingMs < 1000) {
+        budgetWarning = 'No hubo tiempo suficiente para calcular el presupuesto en este turno.'
+      } else {
+        const budgetController = new AbortController()
+        const budgetTimeoutMs = Math.min(chatBudgetTimeoutMs, remainingMs)
+        let budgetTimer = null
+        try {
+          const timeoutPromise = new Promise((_, reject) => {
+            budgetTimer = setTimeout(() => {
+              budgetController.abort()
+              const error = new Error('Tiempo de presupuesto agotado')
+              error.name = 'BudgetTimeoutError'
+              reject(error)
+            }, budgetTimeoutMs)
+          })
+          budgetEstimate = await Promise.race([
+            estimateItineraryBudget(itinerary, {
+              signal: budgetController.signal,
+              persist: false,
+            }),
+            timeoutPromise,
+          ])
+          if (budgetEstimate) {
+            itinerary.budgetEstimate = summarizeBudgetEstimate(budgetEstimate)
+          } else {
+            budgetWarning = 'El servidor no devolvió un presupuesto para este itinerario.'
+          }
+        } catch (error) {
+          budgetController.abort()
+          budgetWarning =
+            'No se pudo completar el cálculo del presupuesto; puedes reintentarlo desde la tarjeta de presupuesto.'
+          logError?.('[chat] cálculo de presupuesto', {
+            code: error?.code ?? error?.name ?? 'UNKNOWN',
+          })
+        } finally {
+          if (budgetTimer) clearTimeout(budgetTimer)
+        }
+      }
+      messageText = appendBudgetNote(messageText, budgetEstimate, budgetWarning)
+    }
+
     const stats = toolRunner.getStats()
     const itineraryTokenOut = itinerary
       ? signItinerary(itinerary, { secret: signingSecret, now: now(), ttlMs: itineraryTtlMs })
@@ -351,11 +438,17 @@ export function createChatService({
       suggestions: sanitizeSuggestions(finalPayload.suggestions),
       itinerary,
       itineraryToken: itineraryTokenOut,
+      budgetEstimate,
+      budgetWarning,
       meta: {
         source: 'openstreetmap',
         provider: aiClient?.providerName ?? null,
         dataSources: stats.dataSources,
         placesFound: knownPlaces.size,
+        budget: {
+          estimated: Boolean(budgetEstimate),
+          warning: budgetWarning,
+        },
         dataNotice:
           'Los lugares provienen de OpenStreetMap y pueden estar incompletos o desactualizados. OpenStreetMap no incluye calificaciones, reseñas, fotos ni precios.',
       },

@@ -1,4 +1,5 @@
 import { buildOsmLink, formatDistance } from '../../utils/placeFormatters.js'
+import BudgetPanel from '../budget/BudgetPanel.jsx'
 import OpenStreetMapAttribution from '../places/OpenStreetMapAttribution.jsx'
 import ResultsMap from '../places/ResultsMap.jsx'
 
@@ -22,7 +23,12 @@ function formatBudget(budget) {
   }
 }
 
-export default function ItineraryView({ itinerary, navigate }) {
+export default function ItineraryView({
+  itinerary,
+  navigate,
+  itineraryId = null,
+  onDownloadPdf = null,
+}) {
   if (!itinerary || !Array.isArray(itinerary.stops) || itinerary.stops.length === 0) {
     return (
       <section className="saved-itinerary" aria-labelledby="saved-itinerary-title">
@@ -121,10 +127,19 @@ export default function ItineraryView({ itinerary, navigate }) {
       </ol>
 
       <p className="chat-itinerary-note">
-        Las distancias son en línea recta y el orden es una sugerencia. Los datos
-        del lugar se guardaron desde OpenStreetMap; si el lugar cambió o ya no
-        existe, «Ver detalle actual» consulta la información disponible ahora.
+        Las distancias entre paradas son en línea recta y el orden es una sugerencia.
+        El presupuesto usa el cálculo del servidor y puede apoyarse en OSRM. Los datos
+        del lugar se guardaron desde OpenStreetMap; si el lugar cambió o ya no existe,
+        «Ver detalle actual» consulta la información disponible ahora.
       </p>
+
+      <BudgetPanel
+        itinerary={itinerary}
+        itineraryId={itineraryId}
+        autoCalculate
+        variant="saved"
+        onDownloadPdf={onDownloadPdf}
+      />
 
       {warnings.length > 0 && (
         <details className="chat-itinerary-warnings">

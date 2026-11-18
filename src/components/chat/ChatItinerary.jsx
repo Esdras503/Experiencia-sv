@@ -1,4 +1,5 @@
 import { buildOsmLink, formatDistance } from '../../utils/placeFormatters'
+import BudgetPanel from '../budget/BudgetPanel.jsx'
 import ResultsMap from '../places/ResultsMap'
 
 function isPlainClick(event) {
@@ -38,6 +39,8 @@ function formatBudget(budget) {
  */
 export default function ChatItinerary({
   itinerary,
+  budgetEstimate = null,
+  budgetWarning = null,
   onOpenPlace,
   onSuggestion,
   onSave,
@@ -83,8 +86,9 @@ export default function ChatItinerary({
 
       <div className="chat-itinerary-meta">
         {date && <span>📅 {date}</span>}
+        {itinerary.durationDays && <span>⏱ {itinerary.durationDays} días</span>}
         {itinerary.travelers && <span>👥 {itinerary.travelers} personas</span>}
-        {budget && <span>💵 {budget} (referencia)</span>}
+        {budget && <span>💵 {budget} (límite declarado)</span>}
         {itinerary.origin && <span>⌖ Salida: {itinerary.origin.label}</span>}
       </div>
 
@@ -159,8 +163,9 @@ export default function ChatItinerary({
       </ol>
 
       <p className="chat-itinerary-note">
-        Distancias en línea recta (no por carretera). El orden es una sugerencia y puede
-        no ser la ruta más corta.
+        Las distancias entre paradas son en línea recta. El presupuesto intenta calcular
+        la ruta por carretera con OSRM y, si no está disponible, usa una estimación
+        marcada. El orden es una sugerencia y puede no ser la ruta más corta.
       </p>
 
       <div className="chat-itinerary-actions" aria-label="Acciones para modificar el itinerario">
@@ -191,6 +196,13 @@ export default function ChatItinerary({
           Más económico
         </button>
       </div>
+
+      <BudgetPanel
+        itinerary={itinerary}
+        initialEstimate={budgetEstimate}
+        initialError={budgetWarning}
+        variant="chat"
+      />
 
       <div className="chat-itinerary-save" aria-live="polite">
         {savedItineraryId ? (

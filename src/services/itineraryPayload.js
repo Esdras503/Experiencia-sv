@@ -129,6 +129,29 @@ export function normalizeBudget(value) {
   return { amount, currency, scope }
 }
 
+export function normalizeBudgetOptions(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const options = {
+    transportMode: ['particular', 'publico'].includes(value.transportMode)
+      ? value.transportMode
+      : null,
+    mealTier: ['economico', 'estandar', 'premium'].includes(value.mealTier)
+      ? value.mealTier
+      : null,
+    lodgingTier: ['economico', 'estandar', 'premium'].includes(value.lodgingTier)
+      ? value.lodgingTier
+      : null,
+    includeLodging:
+      typeof value.includeLodging === 'boolean' ? value.includeLodging : null,
+  }
+  return options.transportMode ||
+    options.mealTier ||
+    options.lodgingTier ||
+    options.includeLodging !== null
+    ? options
+    : null
+}
+
 export function recalculateStopDistances(stops, origin) {
   const safeOrigin = normalizeOrigin(origin)
   let previousLocation = null
@@ -273,6 +296,7 @@ function basePreferences(itinerary, origin, budget) {
   return {
     origin,
     budgetScope: budget?.scope ?? null,
+    budgetOptions: normalizeBudgetOptions(itinerary?.budgetOptions),
     warnings: normalizeWarnings(itinerary?.warnings),
     dataSource: cleanText(itinerary?.dataSource, 60),
     attribution: cleanText(itinerary?.attribution, 200),
@@ -524,6 +548,7 @@ export function itineraryToView(record) {
           }
         : null,
     origin,
+    budgetOptions: normalizeBudgetOptions(preferences.budgetOptions),
     stops,
     warnings: normalizeWarnings(preferences.warnings),
     dataSource: preferences.dataSource ?? 'openstreetmap',

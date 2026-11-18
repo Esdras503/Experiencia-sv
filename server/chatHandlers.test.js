@@ -90,6 +90,37 @@ function createDeferred() {
   return { promise, resolve, reject }
 }
 
+function createFakeBudgetService() {
+  return {
+    publicConfig: () => ({
+      enabled: true,
+      currency: 'USD',
+      storage: 'none',
+      adminEnabled: false,
+      transportModes: [],
+      mealTiers: [],
+      lodgingTiers: [],
+    }),
+    estimateForItinerary: async () => null,
+    calculate: async () => {
+      throw new AppError(ERROR_CODES.BUDGET_UNAVAILABLE, { status: 503 })
+    },
+    listHistory: async () => ({ estimates: [], currency: 'USD' }),
+    getAdminConfig: async () => {
+      throw new AppError(ERROR_CODES.BUDGET_NOT_CONFIGURED, { status: 503 })
+    },
+    updateAdminSettings: async () => {
+      throw new AppError(ERROR_CODES.BUDGET_NOT_CONFIGURED, { status: 503 })
+    },
+    upsertAdminEntrance: async () => {
+      throw new AppError(ERROR_CODES.BUDGET_NOT_CONFIGURED, { status: 503 })
+    },
+    deleteAdminEntrance: async () => {
+      throw new AppError(ERROR_CODES.BUDGET_NOT_CONFIGURED, { status: 503 })
+    },
+  }
+}
+
 function makeHandler({ fake = {}, env = {}, aiClient, logError = () => {} } = {}) {
   const { client, calls } = createFakeOsmClient(fake)
   const handler = createRequestHandler({
@@ -100,6 +131,7 @@ function makeHandler({ fake = {}, env = {}, aiClient, logError = () => {} } = {}
     },
     osmClient: client,
     aiClient,
+    budgetService: createFakeBudgetService(),
     logError,
   })
   return { handler, calls }

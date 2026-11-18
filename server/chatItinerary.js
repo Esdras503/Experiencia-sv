@@ -1,4 +1,9 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import {
+  BUDGET_LODGING_TIERS,
+  BUDGET_MEAL_TIERS,
+  BUDGET_TRANSPORT_MODES,
+} from '../shared/budget.js'
 import { MAX_ITINERARY_STOPS } from '../shared/chat.js'
 import { haversineMeters, isValidLatitude, isValidLongitude } from '../shared/geo.js'
 import { OSM_ATTRIBUTION, OSM_COPYRIGHT_URL } from '../shared/osm.js'
@@ -183,6 +188,27 @@ function normalizeBudget(value) {
   return { amount: Math.round(amount * 100) / 100, currency, scope }
 }
 
+function normalizeChatBudgetOptions(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const options = {
+    transportMode: BUDGET_TRANSPORT_MODES.includes(value.transportMode)
+      ? value.transportMode
+      : null,
+    mealTier: BUDGET_MEAL_TIERS.includes(value.mealTier) ? value.mealTier : null,
+    lodgingTier: BUDGET_LODGING_TIERS.includes(value.lodgingTier)
+      ? value.lodgingTier
+      : null,
+    includeLodging:
+      typeof value.includeLodging === 'boolean' ? value.includeLodging : null,
+  }
+  return options.transportMode ||
+    options.mealTier ||
+    options.lodgingTier ||
+    options.includeLodging !== null
+    ? options
+    : null
+}
+
 function normalizeOrigin(value, fallback = null) {
   const candidate = value && typeof value === 'object' && !Array.isArray(value) ? value : null
   if (
@@ -314,7 +340,7 @@ export function buildItinerary(
   }
   if (budget) {
     serverWarnings.push(
-      'El presupuesto es solo una referencia: OpenStreetMap no ofrece precios verificados de entradas, comidas, transporte o alojamiento.',
+      'El límite de presupuesto es una referencia declarada por la persona; el cálculo detallado se hace en el servidor con tarifas configurables y no constituye una cotización.',
     )
   }
   if (skippedIds.length > 0) {
@@ -345,7 +371,17 @@ export function buildItinerary(
       Number(raw.travelers) <= 50
         ? Number(raw.travelers)
         : (currentItinerary?.travelers ?? null),
+    durationDays:
+      Number.isInteger(Number(raw.durationDays)) &&
+      Number(raw.durationDays) >= 1 &&
+      Number(raw.durationDays) <= 60
+        ? Number(raw.durationDays)
+        : (currentItinerary?.durationDays ?? null),
     budget: budget ?? currentItinerary?.budget ?? null,
+    budgetOptions:
+      normalizeChatBudgetOptions(raw.budgetOptions) ??
+      currentItinerary?.budgetOptions ??
+      null,
     origin,
     stops,
     warnings: normalizeWarnings(raw.warnings, serverWarnings),
@@ -365,7 +401,10 @@ export function compactItineraryForPrompt(itinerary) {
     summary: itinerary.summary,
     date: itinerary.date,
     travelers: itinerary.travelers,
+    durationDays: itinerary.durationDays ?? null,
     budget: itinerary.budget,
+    budgetOptions: itinerary.budgetOptions ?? null,
+    budgetEstimate: itinerary.budgetEstimate ?? null,
     origin: itinerary.origin,
     stops: itinerary.stops.map((stop) => ({
       placeId: stop.place.id,

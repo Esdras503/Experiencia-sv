@@ -9,6 +9,10 @@ piden tarjetas.
 uso de la búsqueda, el asistente, la cuenta, la confirmación de correo y la
 gestión de itinerarios sin entrar en detalles de despliegue.
 
+**Presupuestos estimados:** [PRESUPUESTOS.md](PRESUPUESTOS.md). Documenta las
+fórmulas, las tablas, las variables de entorno, el flujo de actualización de
+precios y los resultados de las pruebas de la Fase 8.
+
 ## Estado por fases
 
 - **Fase 1:** identidad visual, navegación, chat de demostración y páginas base.
@@ -61,7 +65,7 @@ gestión de itinerarios sin entrar en detalles de despliegue.
     se simulan cobros y no se activan planes desde el navegador;
   - tablas separadas para eventos de pago, reservas y comisiones, sin presentar
     reservas ni ingresos que todavía no existen.
-- **Fase 7 (esta entrega):** modo demostración/feria global:
+- **Fase 7:** modo demostración/feria global:
   - se activa con `VITE_DEMO_MODE=true` y se aplica en el backend, no solo en
     React; el frontend y el API leen la misma variable. El backend también acepta
     `DEMO_MODE=true` como alias de runtime;
@@ -76,6 +80,18 @@ gestión de itinerarios sin entrar en detalles de despliegue.
     trigger de itinerarios no limite a 2 guardados durante la feria; el backend
     lo sincroniza con `service_role` y lo revierte al desactivar la demo;
   - al volver a `false`, el comportamiento comercial de la Fase 6 queda intacto.
+- **Fase 8 (presupuestos inteligentes):**
+  - cálculo determinista en el backend de transporte, combustible, comidas,
+    entradas, actividades, hospedaje y extras;
+  - tarifas configurables y catálogo de entradas con fuente, fecha y estado de
+    verificación; lo no verificado se muestra como estimación;
+  - panel responsivo en el chat y en los itinerarios guardados, con total, costo
+    por persona, desglose, gráfico, advertencias y descarga en PDF;
+  - historial con RLS por propietario y administración protegida por
+    `ADMIN_EMAILS`/`ADMIN_USER_IDS` en `/admin/presupuestos`;
+  - OSRM opcional con caché y respaldo Haversine; OpenStreetMap sigue siendo la
+    única fuente de lugares.
+  - Detalles, fórmulas, tablas y variables: [PRESUPUESTOS.md](PRESUPUESTOS.md).
 
 No se muestran lugares de demostración: todo resultado proviene de
 OpenStreetMap en el momento de la consulta. **OpenStreetMap no ofrece fotos,
@@ -899,6 +915,10 @@ Cubre:
   entre demo activa/desactivada;
 - comprobaciones estáticas de la migración de Fase 7: `app_settings` de una fila,
   RLS, `service_role` como único autorizado, trigger de itinerarios y prueba SQL;
+- presupuesto inteligente: fórmulas deterministas, entradas verificadas y sin
+  precio, hospedaje, transporte público, recálculo tras cambiar personas o el
+  límite, integración tolerante a fallos con el chat, endpoints, cliente del API,
+  migración estática y RLS de dos usuarios;
 - normalización del estado del plan, errores con `details` y protección contra
   elusión desde el navegador;
 - prueba de seguridad del código fuente y del bundle para evitar secretos.
@@ -968,9 +988,9 @@ de Supabase y un buzón temporal:
 
 ## Despliegue en Vercel
 
-1. Aplica las migraciones de Fase 5, Fase 6 y Fase 7 al proyecto de Supabase de
+1. Aplica las migraciones de Fase 5, Fase 6, Fase 7 y Fase 8 al proyecto de Supabase de
    producción (`supabase db push` o SQL Editor, en orden) antes de abrir el
-   registro, los cupos y el modo demostración.
+   registro, los cupos, el modo demostración y los presupuestos.
 2. Importa el repositorio en Vercel; el proyecto detecta Vite y las funciones
    de `api/` automáticamente, incluidas `api/billing/status.js` y
    `api/billing/checkout.js`.
@@ -982,7 +1002,9 @@ de Supabase y un buzón temporal:
    secreta y solo debe existir en el backend. Sin ella, `/api/config` indicará
    `billing.enabled:false` y el chat no consumirá cupo.
 5. Define `OSM_USER_AGENT` con un contacto real y, si aplica,
-   `ALLOWED_ORIGIN`.
+   `ALLOWED_ORIGIN`. Para habilitar la administración de tarifas, define
+   `ADMIN_EMAILS` y/o `ADMIN_USER_IDS`; `OSRM_URL` es opcional y el respaldo
+   Haversine funciona sin él.
 6. Define `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`, `AI_PROVIDER_NAME` y un
    `CHAT_SIGNING_SECRET` estable (mínimo 16 caracteres).
 7. Para la feria, define `VITE_DEMO_MODE=true` en **Production y Preview**,
@@ -1098,7 +1120,7 @@ orden:
    integración conserve acceso al repositorio. Si se revocó el permiso o se
    cambió el repositorio, la rama de preview no puede provisionarse.
 5. Reproduce las migraciones en local con `supabase db reset` y revisa los logs
-   de la Fase 5, Fase 6 y Fase 7. Una migración que falla en la rama de preview
+   de la Fase 5, Fase 6, Fase 7 y Fase 8. Una migración que falla en la rama de preview
    aborta el provisioning; en ese caso corrige el SQL y vuelve a desplegar, no
    borres la integración.
 6. Revisa las variables de **Preview** en Vercel: los nombres deben coincidir con
@@ -1195,7 +1217,12 @@ public/            archivos estáticos
 - **Cupos condicionados a configuración**: sin `SUPABASE_SERVICE_ROLE_KEY` y la
   migración de Fase 6, `/planes` es informativa y el chat no consume cupo. La
   migración no se aplicó al proyecto remoto en esta sesión; las pruebas SQL de
-  Fase 5, Fase 6 y Fase 7 siguen pendientes de ejecutarse contra PostgreSQL local.
+  Fase 5, Fase 6, Fase 7 y Fase 8 siguen pendientes de ejecutarse contra PostgreSQL local.
+- **Presupuestos sin service_role**: el cálculo funciona con las tarifas de
+  referencia, pero el historial persistido y `/admin/presupuestos` quedan
+  deshabilitados. Aplica la migración de Fase 8 y configura
+  `SUPABASE_SERVICE_ROLE_KEY` y la lista de administradores. Detalles en
+  [PRESUPUESTOS.md](PRESUPUESTOS.md).
 - **Modo demostración condicionado a la migración de Fase 7**: el backend omite
   las cuotas sin base de datos, pero el trigger de itinerarios necesita
   `app_settings.demo_mode` para dejar de limitar a 2 guardados. Si aplicaste la

@@ -88,6 +88,52 @@ test('convierte el itinerario del chat en una fila sin inventar campos', () => {
   ])
 })
 
+test('conserva las preferencias de presupuesto del chat al guardar y reconstruir', () => {
+  const record = createItineraryInsert(
+    makeChatItinerary({
+      budgetOptions: {
+        transportMode: 'publico',
+        mealTier: 'economico',
+        lodgingTier: 'premium',
+        includeLodging: true,
+      },
+    }),
+    USER_ID,
+  )
+
+  assert.deepEqual(record.preferences.budgetOptions, {
+    transportMode: 'publico',
+    mealTier: 'economico',
+    lodgingTier: 'premium',
+    includeLodging: true,
+  })
+
+  const view = itineraryToView(record)
+  assert.deepEqual(view.budgetOptions, {
+    transportMode: 'publico',
+    mealTier: 'economico',
+    lodgingTier: 'premium',
+    includeLodging: true,
+  })
+})
+
+test('descarta preferencias de presupuesto inválidas sin inventar valores', () => {
+  const record = createItineraryInsert(
+    makeChatItinerary({
+      budgetOptions: {
+        transportMode: 'avion',
+        mealTier: 'lujo',
+        lodgingTier: null,
+        includeLodging: 'sí',
+      },
+    }),
+    USER_ID,
+  )
+
+  assert.equal(record.preferences.budgetOptions, null)
+  assert.equal(itineraryToView(record).budgetOptions, null)
+})
+
 test('omite campos opcionales ausentes en lugar de rellenarlos', () => {
   const record = createItineraryInsert(
     {

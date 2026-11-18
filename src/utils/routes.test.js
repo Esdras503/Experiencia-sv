@@ -53,6 +53,11 @@ test('reconoce los planes y el flujo de contratación', () => {
   assert.deepEqual(parseRoute('/planes/contratar/'), { name: 'checkout' })
 })
 
+test('reconoce la administración de presupuestos', () => {
+  assert.deepEqual(parseRoute('/admin/presupuestos'), { name: 'admin-budget' })
+  assert.deepEqual(parseRoute('/admin/presupuestos/'), { name: 'admin-budget' })
+})
+
 test('marca como no encontrada cualquier otra ruta', () => {
   assert.deepEqual(parseRoute('/ruta-inexistente'), { name: 'not-found' })
   assert.deepEqual(parseRoute('/lugares/a/b'), { name: 'not-found' })

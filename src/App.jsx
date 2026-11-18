@@ -17,6 +17,7 @@ import AccountPage from './pages/AccountPage'
 import AccountUnavailablePage from './pages/AuthUnavailablePage'
 import ItinerariesPage from './pages/ItinerariesPage'
 import ItineraryDetailPage from './pages/ItineraryDetailPage'
+import BudgetAdminPage from './pages/BudgetAdminPage'
 import PlansPage from './pages/PlansPage'
 import CheckoutPage from './pages/CheckoutPage'
 import { useAuth } from './context/authContext.js'
@@ -41,6 +42,7 @@ const PAGE_TITLES = {
   itinerary: 'Itinerario guardado — Experiencia SV',
   plans: 'Planes y precios — Experiencia SV',
   checkout: 'Contratar un plan — Experiencia SV',
+  'admin-budget': 'Administración de presupuestos — Experiencia SV',
   'not-found': 'Página no encontrada — Experiencia SV',
 }
 
@@ -124,7 +126,8 @@ function App() {
     (authRoute ||
       route.name === 'account' ||
       route.name === 'itineraries' ||
-      route.name === 'itinerary')
+      route.name === 'itinerary' ||
+      route.name === 'admin-budget')
 
   return (
     <div className="app">
@@ -215,6 +218,16 @@ function App() {
                 itineraryId={route.itineraryId}
                 navigate={navigate}
               />
+            </RequireAuth>
+          )}
+
+          {configured && route.name === 'admin-budget' && (
+            <RequireAuth
+              navigate={navigate}
+              pathname={pathname}
+              search={search}
+            >
+              <BudgetAdminPage />
             </RequireAuth>
           )}
 

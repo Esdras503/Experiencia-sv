@@ -22,6 +22,8 @@ const ChatPanel = forwardRef(function ChatPanel(
     error,
     canRetry,
     itinerary,
+    budgetEstimate,
+    budgetWarning,
     suggestions,
     onRetry,
     onCancel,
@@ -173,6 +175,8 @@ const ChatPanel = forwardRef(function ChatPanel(
         {itinerary && (
           <ChatItinerary
             itinerary={itinerary}
+            budgetEstimate={budgetEstimate}
+            budgetWarning={budgetWarning}
             onOpenPlace={onOpenPlace}
             onSuggestion={onSuggestion}
             onSave={onSaveItinerary}

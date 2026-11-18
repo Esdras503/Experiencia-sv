@@ -186,7 +186,12 @@ export default function ItineraryDetailPage({ itineraryId, navigate }) {
           onCancel={() => setEditing(false)}
         />
       ) : (
-        <ItineraryView itinerary={view} navigate={navigate} />
+        <ItineraryView
+          itinerary={view}
+          navigate={navigate}
+          itineraryId={record.id}
+          onDownloadPdf={() => window.print()}
+        />
       )}
 
       <ConfirmDialog

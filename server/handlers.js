@@ -23,6 +23,7 @@ import {
 import { createRateLimiter, createConcurrencyLimiter } from './rateLimit.js'
 import { createTtlCache } from './cache.js'
 import { haversineMeters } from '../shared/geo.js'
+import { createBudgetService } from './budget/budgetService.js'
 import {
   createOsmClient,
   DEFAULT_NOMINATIM_INTERVAL_MS,
@@ -191,10 +192,21 @@ export function createRequestHandler({
   osmClient,
   aiClient,
   billingService,
+  budgetService,
 } = {}) {
   const demoMode = resolveDemoMode(env)
   const searchLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now })
   const generalLimiter = createRateLimiter({ limit: 60, windowMs: 60_000, now })
+  const budgetLimiter = createRateLimiter({
+    limit: resolveLimit(env.BUDGET_RATE_LIMIT_PER_MINUTE, 30, 1, 120),
+    windowMs: 60_000,
+    now,
+  })
+  const adminLimiter = createRateLimiter({
+    limit: resolveLimit(env.BUDGET_ADMIN_RATE_LIMIT_PER_MINUTE, 20, 1, 60),
+    windowMs: 60_000,
+    now,
+  })
   const chatIpLimiter = createRateLimiter({
     limit: resolveLimit(env.CHAT_RATE_LIMIT_PER_MINUTE, 12, 1, 60),
     windowMs: 60_000,
@@ -394,6 +406,15 @@ export function createRequestHandler({
     return payload
   }
 
+  const resolvedBudgetService =
+    budgetService ??
+    createBudgetService({
+      env,
+      fetchImpl,
+      now,
+      logError,
+    })
+
   const chatService = createChatService({
     aiClient: resolvedAiClient,
     placeService: { search: runSearch, detailsById: runDetails, locate: runLocate },
@@ -401,6 +422,11 @@ export function createRequestHandler({
     env,
     now,
     logError,
+    estimateItineraryBudget: (itinerary, options = {}) =>
+      resolvedBudgetService.estimateForItinerary(itinerary, {
+        ...options,
+        persist: options.persist === true,
+      }),
   })
 
   const resolvedBillingService =
@@ -593,6 +619,58 @@ export function createRequestHandler({
     throw new AppError(ERROR_CODES.PAYMENTS_NOT_CONFIGURED, { status: 503 })
   }
 
+  async function handleBudgetCalculate({ body, ip, headers, signal }) {
+    enforceRateLimit(budgetLimiter, ip, 'budget')
+    checkOrigin({ headers, env })
+    const payload = await resolvedBudgetService.calculate({
+      input: body,
+      headers,
+      signal,
+      persist: body?.persist !== false,
+    })
+    return jsonResponse(200, payload)
+  }
+
+  async function handleBudgetHistory({ headers, query = {}, ip }) {
+    enforceRateLimit(generalLimiter, ip, 'budget-history')
+    checkOrigin({ headers, env })
+    const itineraryId =
+      typeof query.itineraryId === 'string' && query.itineraryId.trim()
+        ? query.itineraryId.trim()
+        : null
+    const limit = resolveLimit(query.limit, 20, 1, 50)
+    const payload = await resolvedBudgetService.listHistory({
+      headers,
+      itineraryId,
+      limit,
+    })
+    return jsonResponse(200, payload)
+  }
+
+  async function handleAdminBudget({ headers, ip }) {
+    enforceRateLimit(adminLimiter, ip, 'admin-budget')
+    checkOrigin({ headers, env })
+    const payload = await resolvedBudgetService.getAdminConfig({ headers })
+    return jsonResponse(200, payload)
+  }
+
+  async function handleAdminBudgetSettings({ headers, body, ip }) {
+    enforceRateLimit(adminLimiter, ip, 'admin-budget-settings')
+    checkOrigin({ headers, env })
+    const payload = await resolvedBudgetService.updateAdminSettings({ headers, body })
+    return jsonResponse(200, payload)
+  }
+
+  async function handleAdminBudgetEntrance({ headers, body, ip, method }) {
+    enforceRateLimit(adminLimiter, ip, 'admin-budget-entrance')
+    checkOrigin({ headers, env })
+    const payload =
+      method === 'DELETE'
+        ? await resolvedBudgetService.deleteAdminEntrance({ headers, body })
+        : await resolvedBudgetService.upsertAdminEntrance({ headers, body })
+    return jsonResponse(200, payload)
+  }
+
   function handleConfig() {
     const tileUrl = isSafeTileUrl(env.OSM_TILE_URL) ? env.OSM_TILE_URL : OSM_TILE_URL_DEFAULT
     const tileAttribution =
@@ -627,6 +705,7 @@ export function createRequestHandler({
         demoMode,
         plansUrl: '/planes',
       },
+      budget: resolvedBudgetService.publicConfig(),
       demo: {
         enabled: demoMode,
         banner: DEMO_MODE_BANNER,
@@ -677,6 +756,41 @@ export function createRequestHandler({
           throw new AppError(ERROR_CODES.METHOD_NOT_ALLOWED, { status: 405 })
         }
         return await handleChat({ body, ip, headers, signal })
+      }
+
+      if (pathname === '/api/budget/calculate') {
+        if (method !== 'POST') {
+          throw new AppError(ERROR_CODES.METHOD_NOT_ALLOWED, { status: 405 })
+        }
+        return await handleBudgetCalculate({ body, ip, headers, signal })
+      }
+
+      if (pathname === '/api/budget/history') {
+        if (method !== 'GET') {
+          throw new AppError(ERROR_CODES.METHOD_NOT_ALLOWED, { status: 405 })
+        }
+        return await handleBudgetHistory({ headers, query, ip })
+      }
+
+      if (pathname === '/api/admin/budget') {
+        if (method !== 'GET') {
+          throw new AppError(ERROR_CODES.METHOD_NOT_ALLOWED, { status: 405 })
+        }
+        return await handleAdminBudget({ headers, ip })
+      }
+
+      if (pathname === '/api/admin/budget/settings') {
+        if (method !== 'PUT') {
+          throw new AppError(ERROR_CODES.METHOD_NOT_ALLOWED, { status: 405 })
+        }
+        return await handleAdminBudgetSettings({ headers, body, ip })
+      }
+
+      if (pathname === '/api/admin/budget/entrances') {
+        if (method !== 'POST' && method !== 'DELETE') {
+          throw new AppError(ERROR_CODES.METHOD_NOT_ALLOWED, { status: 405 })
+        }
+        return await handleAdminBudgetEntrance({ headers, body, ip, method })
       }
 
       if (pathname === '/api/billing/status') {

@@ -24,6 +24,9 @@ export const ERROR_CODES = {
   BILLING_NOT_CONFIGURED: 'BILLING_NOT_CONFIGURED',
   BILLING_UNAVAILABLE: 'BILLING_UNAVAILABLE',
   PAYMENTS_NOT_CONFIGURED: 'PAYMENTS_NOT_CONFIGURED',
+  BUDGET_NOT_CONFIGURED: 'BUDGET_NOT_CONFIGURED',
+  BUDGET_UNAVAILABLE: 'BUDGET_UNAVAILABLE',
+  ADMIN_FORBIDDEN: 'ADMIN_FORBIDDEN',
   INTERNAL: 'INTERNAL',
 }
 
@@ -73,6 +76,12 @@ const PUBLIC_MESSAGES = {
     'No pudimos verificar tu plan en este momento. Intenta de nuevo en unos segundos.',
   [ERROR_CODES.PAYMENTS_NOT_CONFIGURED]:
     'El pago aún no está habilitado. No se ha realizado ningún cobro ni se ha activado ningún plan.',
+  [ERROR_CODES.BUDGET_NOT_CONFIGURED]:
+    'La administración de presupuestos no está configurada en este entorno.',
+  [ERROR_CODES.BUDGET_UNAVAILABLE]:
+    'No pudimos consultar los presupuestos en este momento. Intenta de nuevo en unos segundos.',
+  [ERROR_CODES.ADMIN_FORBIDDEN]:
+    'No tienes permiso para administrar los presupuestos de Experiencia SV.',
   [ERROR_CODES.INTERNAL]: 'Ocurrió un error inesperado en el servidor.',
 }
 

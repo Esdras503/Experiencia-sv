@@ -19,6 +19,7 @@ import ItinerariesPage from './pages/ItinerariesPage'
 import ItineraryDetailPage from './pages/ItineraryDetailPage'
 import BudgetAdminPage from './pages/BudgetAdminPage'
 import PlansPage from './pages/PlansPage'
+import BusinessPlansPage from './pages/BusinessPlansPage'
 import CheckoutPage from './pages/CheckoutPage'
 import { useAuth } from './context/authContext.js'
 import { useAppRoute } from './hooks/useAppRoute'
@@ -41,6 +42,7 @@ const PAGE_TITLES = {
   itineraries: 'Mis itinerarios — Experiencia SV',
   itinerary: 'Itinerario guardado — Experiencia SV',
   plans: 'Planes y precios — Experiencia SV',
+  'business-plans': 'Planes para negocios — Experiencia SV',
   checkout: 'Contratar un plan — Experiencia SV',
   'admin-budget': 'Administración de presupuestos — Experiencia SV',
   'not-found': 'Página no encontrada — Experiencia SV',
@@ -154,6 +156,8 @@ function App() {
           )}
 
           {route.name === 'plans' && <PlansPage />}
+
+          {route.name === 'business-plans' && <BusinessPlansPage />}
 
           {route.name === 'checkout' && <CheckoutPage search={search} />}
 

@@ -6,6 +6,7 @@ import {
   getPlan,
 } from '../../shared/plans.js'
 import { DEMO_MODE_BANNER } from '../../shared/demoMode.js'
+import BusinessIcon from '../components/business/BusinessIcon.jsx'
 import { useAuth } from '../context/authContext.js'
 import { usePlanStatus } from '../context/planContext.js'
 
@@ -171,6 +172,19 @@ export default function PlansPage() {
             </>
           )}
         </div>
+
+        <a className="plans-business-link" href="/planes/negocios">
+          <span className="plans-business-link-icon">
+            <BusinessIcon name="store" size={21} />
+          </span>
+          <span>
+            <strong>¿Tienes un negocio turístico?</strong> Descubre los planes
+            para negocios.
+          </span>
+          <span className="plans-business-link-arrow" aria-hidden="true">
+            →
+          </span>
+        </a>
       </section>
 
       {demoMode && (

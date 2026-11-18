@@ -5251,3 +5251,1108 @@ button:disabled {
     color: #44534a !important;
   }
 }
+
+/* ------------------------------------------------------------------------- */
+/* Planes para negocios: catálogo demostrativo, separado de los planes turísticos. */
+/* ------------------------------------------------------------------------- */
+
+.plans-business-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  margin-top: 24px;
+  padding: 11px 15px;
+  border: 1px solid #d7e3d4;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f4f8f1, #ffffff);
+  color: var(--green-dark);
+  font-size: 13.5px;
+  line-height: 1.45;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.plans-business-link:hover {
+  border-color: #a9c4a8;
+  box-shadow: 0 10px 26px #236b4d12;
+  transform: translateY(-2px);
+}
+
+.plans-business-link strong {
+  font-weight: 800;
+}
+
+.plans-business-link-icon {
+  display: grid;
+  flex: 0 0 38px;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--green-light);
+  color: var(--green);
+}
+
+.plans-business-link-arrow {
+  margin-left: 4px;
+  color: var(--green);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.business-plans-page {
+  padding-top: 26px;
+}
+
+.business-hero {
+  position: relative;
+  overflow: hidden;
+  margin-top: 8px;
+  padding: clamp(26px, 4.5vw, 50px);
+  border: 1px solid #dce7d9;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 91% 14%, #dcebd7 0, #dcebd700 32%),
+    radial-gradient(circle at 78% 92%, #eef1e5 0, #eef1e500 42%),
+    linear-gradient(135deg, #f6f8f1 0%, #ffffff 58%, #edf4ea 100%);
+}
+
+.business-hero::after {
+  content: '';
+  position: absolute;
+  right: -90px;
+  bottom: -140px;
+  width: 330px;
+  height: 330px;
+  border: 1px solid #a9c4a838;
+  border-radius: 50%;
+  box-shadow: 0 0 0 36px #a9c4a814, 0 0 0 76px #a9c4a80d;
+  pointer-events: none;
+}
+
+.business-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.business-hero h1 {
+  max-width: 850px;
+}
+
+.business-hero .plans-hero-description {
+  max-width: 70ch;
+}
+
+.business-hero-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.business-demo-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid #d9e2d4;
+  border-radius: 999px;
+  background: #ffffffc9;
+  color: #52675b;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.business-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.business-separation-note {
+  max-width: 78ch;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px dashed #cbd9c8;
+  color: #607067;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.business-section {
+  margin-top: clamp(48px, 6vw, 72px);
+}
+
+.business-benefit-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.business-benefit-card {
+  position: relative;
+  overflow: hidden;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 8px 26px #243f2909;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+}
+
+.business-benefit-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--green), #a8c59c);
+}
+
+.business-benefit-card:hover {
+  border-color: #b8cfb3;
+  box-shadow: 0 14px 32px #236b4d14;
+  transform: translateY(-3px);
+}
+
+.business-benefit-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background: var(--green-light);
+  color: var(--green);
+}
+
+.business-benefit-card h3 {
+  margin: 0 0 8px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 17px;
+  letter-spacing: -0.35px;
+}
+
+.business-benefit-card p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.business-discovery {
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid #dfe6da;
+  border-radius: 22px;
+  background: #ffffffb8;
+}
+
+.business-discovery-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px 24px;
+  margin-bottom: 18px;
+}
+
+.business-discovery-heading h3 {
+  margin: 0;
+  font-family: 'Manrope', sans-serif;
+  font-size: 21px;
+  letter-spacing: -0.5px;
+}
+
+.business-discovery-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.business-discovery-steps li {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 10px;
+  padding: 0 22px;
+  border-right: 1px solid #e7ebe2;
+}
+
+.business-discovery-steps li:first-child {
+  padding-left: 0;
+}
+
+.business-discovery-steps li:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
+.business-discovery-icon {
+  display: grid;
+  grid-row: span 3;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #f0f6ee;
+  color: var(--green);
+}
+
+.business-discovery-number {
+  color: #9aaa9e;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.business-discovery-steps strong {
+  font-family: 'Manrope', sans-serif;
+  font-size: 14.5px;
+}
+
+.business-discovery-steps p {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.business-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 22px;
+  padding-top: 14px;
+}
+
+.business-plan-card {
+  --business-accent: var(--green);
+  --business-accent-soft: var(--green-light);
+  --business-accent-ink: var(--green-dark);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 26px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.business-plan-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  border-radius: 24px 24px 0 0;
+  background: var(--business-accent);
+}
+
+.business-plan-explorer {
+  --business-accent: #4b7d8f;
+  --business-accent-soft: #eaf2f4;
+  --business-accent-ink: #2f5f6c;
+}
+
+.business-plan-featured {
+  --business-accent: var(--green);
+  --business-accent-soft: var(--green-light);
+  --business-accent-ink: var(--green-dark);
+}
+
+.business-plan-premium {
+  --business-accent: #9a7428;
+  --business-accent-soft: #f7efdb;
+  --business-accent-ink: #70531b;
+}
+
+.business-plan-card:hover {
+  border-color: #b8cfb3;
+  box-shadow: 0 18px 46px #236b4d17;
+  transform: translateY(-4px);
+}
+
+.business-plan-card.is-recommended {
+  border: 2px solid var(--green);
+  background: linear-gradient(180deg, #fbfffa 0%, #ffffff 30%);
+  box-shadow: 0 22px 52px #236b4d24;
+  transform: translateY(-8px);
+}
+
+.business-plan-card.is-recommended:hover {
+  box-shadow: 0 26px 62px #236b4d2c;
+  transform: translateY(-12px);
+}
+
+.business-plan-ribbon {
+  position: absolute;
+  top: -14px;
+  left: 24px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 13px;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 6px 18px #174b3840;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.business-plan-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.business-plan-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 17px;
+  background: var(--business-accent-soft);
+  color: var(--business-accent-ink);
+}
+
+.business-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 0 9px;
+  border: 1px solid #e1e6dc;
+  border-radius: 999px;
+  background: #f8f9f4;
+  color: #647167;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.business-plan-card h3 {
+  margin: 18px 0 8px;
+  font-family: 'Manrope', sans-serif;
+  font-size: clamp(22px, 2.2vw, 26px);
+  letter-spacing: -0.8px;
+}
+
+.business-plan-description {
+  min-height: 66px;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.62;
+}
+
+.business-plan-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 8px;
+  margin-top: 18px;
+}
+
+.business-plan-price-label {
+  color: var(--business-accent-ink);
+  font-family: 'Manrope', sans-serif;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1.2px;
+}
+
+.business-plan-price-label + .business-plan-price-amount {
+  color: var(--muted);
+  font-size: 19px;
+  letter-spacing: -0.4px;
+}
+
+.business-plan-price-amount {
+  font-family: 'Manrope', sans-serif;
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1.8px;
+}
+
+.business-plan-price-period {
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.business-plan-price-note {
+  margin-top: 7px;
+  color: #829087;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.business-plan-features {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0 26px;
+  padding: 0;
+  list-style: none;
+}
+
+.business-plan-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #526159;
+  font-size: 13px;
+  line-height: 1.52;
+}
+
+.business-feature-icon {
+  display: grid;
+  flex: 0 0 24px;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--business-accent-soft);
+  color: var(--business-accent-ink);
+}
+
+.business-plan-cta {
+  width: 100%;
+  min-height: 50px;
+  margin-top: auto;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.business-plan-cta:hover {
+  transform: translateY(-1px);
+}
+
+.business-plan-card:not(.is-recommended) .business-plan-cta {
+  border-color: #c6d6c4;
+  color: var(--business-accent-ink);
+}
+
+.business-plan-card:not(.is-recommended) .business-plan-cta:hover {
+  border-color: var(--business-accent);
+  background: var(--business-accent-soft);
+}
+
+.business-demo-note {
+  margin: 18px 0 0;
+  padding: 13px 16px;
+  border: 1px dashed #d8e2d3;
+  border-radius: 12px;
+  background: #f7f9f4;
+  color: #5e6f64;
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.business-demo-note strong {
+  color: var(--green-dark);
+}
+
+.business-positioning-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.business-positioning-steps {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.business-positioning-steps li {
+  display: grid;
+  grid-template-columns: 42px 34px minmax(0, 1fr);
+  align-items: start;
+  gap: 13px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: var(--surface);
+  box-shadow: 0 7px 20px #243f2908;
+}
+
+.business-positioning-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: var(--green-light);
+  color: var(--green);
+}
+
+.business-positioning-number {
+  padding-top: 4px;
+  color: #a1afa5;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.business-positioning-steps h3 {
+  margin: 0 0 5px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+}
+
+.business-positioning-steps p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.62;
+}
+
+.business-search-example {
+  padding: 21px;
+  border: 1px solid #dbe5d7;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #f8fbf6, #ffffff);
+  box-shadow: 0 14px 36px #243f2910;
+}
+
+.business-example-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  margin-bottom: 14px;
+}
+
+.business-example-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: #edf3e9;
+  color: var(--green-dark);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.business-example-caption {
+  color: #7a887e;
+  font-size: 11px;
+}
+
+.business-example-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 13px;
+  border: 1px solid #d5dfd1;
+  border-radius: 11px;
+  background: #fff;
+  color: #6a776e;
+  font-size: 12px;
+  box-shadow: 0 4px 14px #243f2908;
+}
+
+.business-example-results {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.business-example-result {
+  padding: 13px 14px;
+  border: 1px solid #e1e7dc;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.business-example-result.is-sponsored {
+  border-color: #c7dbc2;
+  background: #f7fbf5;
+}
+
+.business-example-result.is-premium {
+  border-left: 4px solid #9a7428;
+}
+
+.business-example-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  margin-bottom: 7px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.business-example-badge.is-organic {
+  background: #e9ede5;
+  color: #5d6a61;
+}
+
+.business-plan-premium .business-example-badge {
+  background: #9a7428;
+}
+
+.business-example-result strong {
+  display: block;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+}
+
+.business-example-result p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.business-example-footnote {
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px dashed #dce5d7;
+  color: #79867d;
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+.business-positioning-note {
+  margin-top: 16px;
+  padding: 14px 17px;
+  border: 1px solid #e7d9ad;
+  border-radius: 12px;
+  background: #fffaf0;
+  color: #62502a;
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.business-faq {
+  max-width: 920px;
+}
+
+.business-final-cta {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  margin-top: clamp(48px, 6vw, 72px);
+  padding: clamp(28px, 4vw, 42px);
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 88% 15%, #ffffff19, transparent 30%),
+    linear-gradient(135deg, #174b38, #236b4d);
+  color: #fff;
+  box-shadow: 0 24px 60px #174b3830;
+}
+
+.business-final-cta::after {
+  content: '';
+  position: absolute;
+  right: -60px;
+  bottom: -120px;
+  width: 260px;
+  height: 260px;
+  border: 1px solid #ffffff1f;
+  border-radius: 50%;
+  box-shadow: 0 0 0 32px #ffffff0b, 0 0 0 68px #ffffff08;
+  pointer-events: none;
+}
+
+.business-final-cta > * {
+  position: relative;
+  z-index: 1;
+}
+
+.business-final-cta .eyebrow {
+  color: #cfe7d8;
+}
+
+.business-final-cta h2 {
+  max-width: 720px;
+  margin: 9px 0 10px;
+  font-family: 'Manrope', sans-serif;
+  font-size: clamp(27px, 4vw, 40px);
+  letter-spacing: -1.3px;
+}
+
+.business-final-cta p {
+  max-width: 62ch;
+  color: #dcebe2;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.business-final-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 50px;
+  padding: 0 22px;
+  border: 1px solid #fff;
+  border-radius: 11px;
+  background: #fff;
+  color: var(--green-dark);
+  font-weight: 800;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.business-final-button:hover {
+  background: #f3f8ef;
+  box-shadow: 0 8px 24px #071f1433;
+  transform: translateY(-2px);
+}
+
+.business-page-note {
+  max-width: 780px;
+  margin: 22px auto 0;
+  color: #839087;
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* Modal informativo de la demostración */
+
+.info-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(10, 31, 22, 0.54);
+  backdrop-filter: blur(3px);
+  animation: info-dialog-fade 0.18s ease-out;
+}
+
+.info-dialog {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: min(90svh, 720px);
+  overflow-y: auto;
+  padding: 34px;
+  border: 1px solid #dfe8dc;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 28px 80px #0b24186b;
+  animation: info-dialog-pop 0.22s ease-out;
+}
+
+.info-dialog-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #dfe3d9;
+  border-radius: 50%;
+  background: #f7f8f1;
+  color: var(--green-dark);
+  font-size: 24px;
+  line-height: 1;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.info-dialog-close:hover {
+  border-color: #b9cdb6;
+  background: var(--green-light);
+}
+
+.info-dialog-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 18px;
+  border-radius: 18px;
+  background: var(--green-light);
+  color: var(--green);
+}
+
+.info-dialog-eyebrow {
+  display: block;
+  color: var(--green);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.info-dialog h2 {
+  margin: 8px 0 0;
+  font-family: 'Manrope', sans-serif;
+  font-size: clamp(25px, 5vw, 31px);
+  letter-spacing: -1px;
+}
+
+.info-dialog-body {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.info-dialog-plan {
+  padding: 10px 12px;
+  border: 1px solid #d8e6d4;
+  border-radius: 10px;
+  background: #f4f9f1;
+  color: var(--green-dark) !important;
+  font-size: 12.5px !important;
+}
+
+.info-dialog-note {
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  color: #859087 !important;
+  font-size: 11.5px !important;
+}
+
+.info-dialog-action {
+  width: 100%;
+  margin-top: 22px;
+}
+
+@keyframes info-dialog-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes info-dialog-pop {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+@media (max-width: 1080px) {
+  .business-benefit-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .business-plan-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .business-plan-card.is-recommended {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    transform: none;
+  }
+
+  .business-plan-card.is-recommended:hover {
+    transform: translateY(-4px);
+  }
+
+  .business-plan-card:nth-child(1) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .business-plan-card:nth-child(3) {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .business-plan-description {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .business-positioning-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .business-discovery-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 0;
+  }
+
+  .business-discovery-steps li:nth-child(2) {
+    border-right: 0;
+  }
+
+  .business-discovery-steps li:nth-child(3) {
+    padding-left: 0;
+  }
+
+  .business-discovery-steps li:nth-child(-n + 2) {
+    padding-bottom: 18px;
+    border-bottom: 1px solid #e7ebe2;
+  }
+}
+
+@media (max-width: 760px) {
+  .business-hero {
+    padding: 25px 21px;
+    border-radius: 22px;
+  }
+
+  .business-hero-actions {
+    align-items: stretch;
+  }
+
+  .business-hero-actions .button-primary,
+  .business-hero-actions .button-secondary {
+    flex: 1 1 220px;
+  }
+
+  .business-plan-grid {
+    grid-template-columns: 1fr;
+    padding-top: 16px;
+  }
+
+  .business-plan-card.is-recommended,
+  .business-plan-card:nth-child(1),
+  .business-plan-card:nth-child(3) {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .business-plan-card.is-recommended {
+    transform: none;
+  }
+
+  .business-plan-card h3 {
+    font-size: 24px;
+  }
+
+  .business-final-cta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .business-final-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 620px) {
+  .business-benefit-grid,
+  .business-discovery-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .business-discovery-steps li,
+  .business-discovery-steps li:first-child,
+  .business-discovery-steps li:nth-child(3),
+  .business-discovery-steps li:nth-child(-n + 2) {
+    padding: 0 0 18px;
+    border-right: 0;
+    border-bottom: 1px solid #e7ebe2;
+  }
+
+  .business-discovery-steps li:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .business-discovery-icon {
+    grid-row: span 3;
+  }
+
+  .business-positioning-steps li {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .business-positioning-icon {
+    grid-row: span 2;
+    width: 38px;
+    height: 38px;
+  }
+
+  .business-positioning-number {
+    display: none;
+  }
+
+  .business-search-example {
+    padding: 16px;
+  }
+
+  .plans-business-link {
+    width: 100%;
+  }
+
+  .business-plan-card {
+    padding: 23px;
+  }
+
+  .info-dialog {
+    padding: 26px 22px;
+    border-radius: 20px;
+  }
+}
+
+@media (max-width: 420px) {
+  .business-plan-price-amount {
+    font-size: 34px;
+  }
+
+  .business-plan-price-label {
+    font-size: 26px;
+  }
+
+  .business-demo-pill {
+    font-size: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plans-business-link,
+  .business-benefit-card,
+  .business-plan-card,
+  .business-plan-cta,
+  .business-final-button {
+    transition: none;
+  }
+
+  .info-dialog-backdrop,
+  .info-dialog {
+    animation: none;
+  }
+}
+
+@media print {
+  .business-hero-actions,
+  .business-plan-cta,
+  .business-final-cta,
+  .info-dialog-backdrop {
+    display: none !important;
+  }
+}

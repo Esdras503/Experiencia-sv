@@ -6,6 +6,7 @@ const STATIC_ROUTES = {
   '/cuenta/restablecer': { name: 'reset-password' },
   '/itinerarios': { name: 'itineraries' },
   '/planes': { name: 'plans' },
+  '/planes/negocios': { name: 'business-plans' },
   '/planes/contratar': { name: 'checkout' },
   '/admin/presupuestos': { name: 'admin-budget' },
 }

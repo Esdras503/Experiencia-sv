@@ -49,6 +49,8 @@ test('reconoce la lista y el detalle de itinerarios', () => {
 test('reconoce los planes y el flujo de contratación', () => {
   assert.deepEqual(parseRoute('/planes'), { name: 'plans' })
   assert.deepEqual(parseRoute('/planes/'), { name: 'plans' })
+  assert.deepEqual(parseRoute('/planes/negocios'), { name: 'business-plans' })
+  assert.deepEqual(parseRoute('/planes/negocios/'), { name: 'business-plans' })
   assert.deepEqual(parseRoute('/planes/contratar'), { name: 'checkout' })
   assert.deepEqual(parseRoute('/planes/contratar/'), { name: 'checkout' })
 })
